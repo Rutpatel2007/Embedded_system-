@@ -15,12 +15,20 @@ static uint32_t g_processedSampleCount = 0;
 static uint32_t g_droppedSampleCount = 0;
 static float g_avgJitterMs = 0.0f;
 
+// Layer 1 Plausibility Engine Instance
+static Layer1PlausibilityEngine g_layer1Engine;
+static Layer1Result g_latestLayer1Result;
+
 const RingBuffer<SensorSample, GAS_RING_BUFFER_SIZE>& getGasRingBuffer() {
     return g_gasRingBuffer;
 }
 
 const RingBuffer<PowerSample, POWER_RING_BUFFER_SIZE>& getPowerRingBuffer() {
     return g_powerRingBuffer;
+}
+
+const Layer1Result& getLatestLayer1Result() {
+    return g_latestLayer1Result;
 }
 
 uint32_t getProcessedSampleCount() {
@@ -122,32 +130,56 @@ void sensorTask(void* pvParameters) {
 }
 
 // ----------------------------------------------------
-// AlgorithmTask: Ring Buffer Maintenance & Development CSV Telemetry
+// AlgorithmTask: Ring Buffer Maintenance, Layer 1 Engine & Development Telemetry
 // ----------------------------------------------------
 void algorithmTask(void* pvParameters) {
     SensorSample sample;
+    static PlausibilityStatus lastStatus = PlausibilityStatus::NORMAL;
+    static uint32_t sampleCounter = 0;
 
     for (;;) {
         // Block until a new SensorSample arrives in the queue
         if (xQueueReceive(g_sampleQueue, &sample, portMAX_DELAY) == pdTRUE) {
             g_processedSampleCount++;
+            sampleCounter++;
 
-            // Update 60-second gas history ring buffer
+            // 1. Evaluate Layer 1 Cross-Modal Physical Plausibility Engine
+            g_latestLayer1Result = g_layer1Engine.evaluate(sample, g_gasRingBuffer, g_powerRingBuffer);
+
+            // 2. Update 60-second gas history ring buffer
             g_gasRingBuffer.add(sample);
 
-            // Update 90-second power trailing history ring buffer
+            // 3. Update 90-second power trailing history ring buffer
             PowerSample pSample;
             pSample.timestamp = sample.timestamp;
             pSample.power_mW = sample.power_mW;
             pSample.equipmentActive = sample.equipmentActive;
             g_powerRingBuffer.add(pSample);
 
-            // Print machine-readable development CSV telemetry row over Serial
+            // 4. Print machine-readable development CSV telemetry row over Serial
             // Format: millisMs,timestamp,gasRaw,gasVoltage,sensorVoltage,power_mW,equipmentActive,gasValid,powerValid
             Serial.printf("[TELEMETRY] %u,%u,%u,%.3f,%.3f,%.3f,%d,%d,%d\n",
                           sample.millisMs, sample.timestamp, sample.gasRaw, sample.gasVoltage, sample.sensorVoltage,
                           sample.power_mW, sample.equipmentActive ? 1 : 0,
                           sample.gasValid ? 1 : 0, sample.powerValid ? 1 : 0);
+
+            // 5. Rate-limited Layer 1 Diagnostic Output (Prints on status change OR every 10 samples ~ 5 sec)
+            if (g_latestLayer1Result.status != lastStatus || (sampleCounter % 10 == 0)) {
+                lastStatus = g_latestLayer1Result.status;
+
+                const char* statusStr = "NORMAL";
+                if (g_latestLayer1Result.status == PlausibilityStatus::PLAUSIBLE) statusStr = "PLAUSIBLE";
+                else if (g_latestLayer1Result.status == PlausibilityStatus::SUSPICIOUS) statusStr = "SUSPICIOUS";
+
+                Serial.printf("[LAYER1 DIAG] gas=%.3fV, baseline=%.3fV, ratio=%.2f, power=%.1fmW, active=%d, timeSincePwr=%ums -> STATUS: %s\n",
+                              g_latestLayer1Result.currentGas,
+                              g_latestLayer1Result.baselineGas,
+                              g_latestLayer1Result.gasChangeRatio,
+                              g_latestLayer1Result.recentPower,
+                              g_latestLayer1Result.powerActivityDetected ? 1 : 0,
+                              g_latestLayer1Result.timeSincePowerActivityMs,
+                              statusStr);
+            }
         }
     }
 }
