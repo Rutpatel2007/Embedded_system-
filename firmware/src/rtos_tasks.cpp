@@ -152,6 +152,7 @@ void algorithmTask(void* pvParameters) {
             // 3. Update 90-second power trailing history ring buffer
             PowerSample pSample;
             pSample.timestamp = sample.timestamp;
+            pSample.millisMs = sample.millisMs;
             pSample.power_mW = sample.power_mW;
             pSample.equipmentActive = sample.equipmentActive;
             g_powerRingBuffer.add(pSample);

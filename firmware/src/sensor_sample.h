@@ -25,7 +25,8 @@ struct SensorSample {
 
 // Power activity entry stored in the 90-second trailing history ring buffer
 struct PowerSample {
-    uint32_t timestamp;
+    uint32_t timestamp;        // Unix epoch in seconds
+    uint32_t millisMs;         // Monotonic millisecond counter for exact trailing window math
     float power_mW;
     bool equipmentActive;
 };

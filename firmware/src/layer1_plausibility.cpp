@@ -58,7 +58,7 @@ void Layer1PlausibilityEngine::analyzePowerHistory(
 
     for (size_t i = 0; i < totalCount; i++) {
         PowerSample p = powerBuffer.get(i);
-        uint32_t sampleAgeMs = (currentMillisMs >= p.timestamp * 1000) ? (currentMillisMs - p.timestamp * 1000) : 0;
+        uint32_t sampleAgeMs = (currentMillisMs >= p.millisMs) ? (currentMillisMs - p.millisMs) : 0;
 
         // Track peak power in the trailing window
         if (p.power_mW > peakPower) {

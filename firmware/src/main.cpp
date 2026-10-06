@@ -8,6 +8,7 @@
 #include "sd_storage.h"
 #include "sensor_provider.h"
 #include "rtos_tasks.h"
+#include "layer1_tests.h"
 
 // Instantiate Physical Hardware Peripheral Objects
 RelayController relay(RELAY_PIN);
@@ -27,12 +28,15 @@ void setup() {
     delay(1000);
 
     Serial.println("\n==========================================");
-    Serial.println("  TrueSense Firmware v0.2.0");
-    Serial.println("  Phase 2: RTOS & Acquisition Architecture");
+    Serial.println("  TrueSense Firmware v0.3.0");
+    Serial.println("  Phase 3A: Layer 1 Engine & Hardened Suite");
     Serial.println("==========================================");
     Serial.printf("ESP32 Chip Model: %s (Rev %d)\n", ESP.getChipModel(), ESP.getChipRevision());
     Serial.printf("CPU Cores: %d @ %d MHz\n", ESP.getChipCores(), ESP.getCpuFreqMHz());
     Serial.printf("Free Heap: %d bytes\n", ESP.getFreeHeap());
+
+    // Execute Independent Layer 1 Deterministic Software Test Suite
+    Layer1TestSuite::runAllTests();
 
 #ifdef USE_MOCK_SENSORS
     activeProvider = &mockProvider;
