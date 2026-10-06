@@ -10,6 +10,7 @@
 #include "rtos_tasks.h"
 #include "layer1_tests.h"
 #include "layer2_tests.h"
+#include "hash_chain_tests.h"
 
 // Instantiate Physical Hardware Peripheral Objects
 RelayController relay(RELAY_PIN);
@@ -29,8 +30,8 @@ void setup() {
     delay(1000);
 
     Serial.println("\n==========================================");
-    Serial.println("  TrueSense Firmware v0.3.1");
-    Serial.println("  Phase 3B: Layer 2 Sensor Identity Engine");
+    Serial.println("  TrueSense Firmware v0.4.0");
+    Serial.println("  Phase 3C: Cryptographic Hash Chain Engine");
     Serial.println("==========================================");
     Serial.printf("ESP32 Chip Model: %s (Rev %d)\n", ESP.getChipModel(), ESP.getChipRevision());
     Serial.printf("CPU Cores: %d @ %d MHz\n", ESP.getChipCores(), ESP.getCpuFreqMHz());
@@ -43,6 +44,9 @@ void setup() {
 
     // Execute Independent Layer 2 Deterministic Software Test Suite
     Layer2TestSuite::runAllTests();
+
+    // Execute Independent Layer 3 Cryptographic Hash Chain Test Suite
+    HashChainTestSuite::runAllTests();
 #else
     Serial.println("\n[BUILD CONFIG] Production Build: Self-Tests Bypassed (Normal Boot)");
 #endif

@@ -7,14 +7,16 @@
 #include "ring_buffer.h"
 #include "layer1_plausibility.h"
 #include "layer2_fingerprint.h"
+#include "hash_chain.h"
 #include "../include/config.h"
 
-// Global Ring Buffers, Layer 1 Engine, Layer 2 Engine & Health Telemetry Accessors
+// Global Ring Buffers, Layer 1, Layer 2 & Hash Chain Engine Accessors
 const RingBuffer<SensorSample, GAS_RING_BUFFER_SIZE>& getGasRingBuffer();
 const RingBuffer<PowerSample, POWER_RING_BUFFER_SIZE>& getPowerRingBuffer();
 const Layer1Result& getLatestLayer1Result();
 const Layer2Result& getLatestLayer2Result();
 Layer2Engine& getLayer2Engine();
+HashChainEngine& getHashChainEngine();
 
 uint32_t getProcessedSampleCount();
 uint32_t getDroppedSampleCount();

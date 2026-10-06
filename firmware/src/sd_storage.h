@@ -27,6 +27,18 @@ public:
     // Read and return file contents as a String
     String readFile(const char* path);
 
+    // Check if a file exists
+    bool exists(const char* path);
+
+    // Get file size in bytes
+    size_t getFileSize(const char* path);
+
+    // Remove a file
+    bool remove(const char* path);
+
+    // Check initialization status
+    bool isInitialized() const { return _initialized; }
+
     // Run diagnostic test: write, read, and verify persistence
     bool runDiagnostic();
 

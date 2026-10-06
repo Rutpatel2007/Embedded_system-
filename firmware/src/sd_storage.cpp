@@ -56,6 +56,25 @@ String SDStorage::readFile(const char* path) {
     return content;
 }
 
+bool SDStorage::exists(const char* path) {
+    if (!_initialized) return false;
+    return SD.exists(path);
+}
+
+size_t SDStorage::getFileSize(const char* path) {
+    if (!_initialized) return 0;
+    File file = SD.open(path, FILE_READ);
+    if (!file) return 0;
+    size_t sz = file.size();
+    file.close();
+    return sz;
+}
+
+bool SDStorage::remove(const char* path) {
+    if (!_initialized) return false;
+    return SD.remove(path);
+}
+
 bool SDStorage::runDiagnostic() {
     const char* diagPath = "/diagnostic.txt";
     const char* testData = "TrueSense SD Persistence Test OK\n";

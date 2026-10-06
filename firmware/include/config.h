@@ -67,6 +67,13 @@
 #define L2_SCHEMA_VERSION           0x0001
 
 // ==========================================
+// Phase 3C Layer 3 Cryptographic Hash Chain Config
+// ==========================================
+#define DEVICE_ID                   "TS001"
+#define LOG_CHAIN_FILE_PATH         "/log_chain.jsonl"
+#define GENESIS_HASH                "0000000000000000000000000000000000000000000000000000000000000000"
+
+// ==========================================
 // Phase 2 RTOS, Queue & Ring Buffer Config
 // ==========================================
 

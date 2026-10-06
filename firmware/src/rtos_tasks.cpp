@@ -15,12 +15,14 @@ static uint32_t g_processedSampleCount = 0;
 static uint32_t g_droppedSampleCount = 0;
 static float g_avgJitterMs = 0.0f;
 
-// Layer 1 & Layer 2 Engine Instances
+// Layer 1, Layer 2 & Layer 3 Engine Instances
 static Layer1PlausibilityEngine g_layer1Engine;
 static Layer1Result g_latestLayer1Result;
 
 static Layer2Engine g_layer2Engine;
 static Layer2Result g_latestLayer2Result;
+
+static HashChainEngine g_hashChainEngine;
 
 const RingBuffer<SensorSample, GAS_RING_BUFFER_SIZE>& getGasRingBuffer() {
     return g_gasRingBuffer;
@@ -42,6 +44,10 @@ Layer2Engine& getLayer2Engine() {
     return g_layer2Engine;
 }
 
+HashChainEngine& getHashChainEngine() {
+    return g_hashChainEngine;
+}
+
 uint32_t getProcessedSampleCount() {
     return g_processedSampleCount;
 }
@@ -60,6 +66,9 @@ bool initRTOSTasks(ISensorProvider* provider) {
 
     // Initialize Layer 2 Sensor Identity Engine
     g_layer2Engine.begin(true);
+
+    // Initialize Layer 3 Cryptographic Hash Chain Engine
+    g_hashChainEngine.begin(nullptr, true);
 
     // Create bounded FreeRTOS queue
     g_sampleQueue = xQueueCreate(SENSOR_QUEUE_LEN, sizeof(SensorSample));
@@ -164,10 +173,13 @@ void algorithmTask(void* pvParameters) {
             // 2. Evaluate Layer 2 Sensor Identity Engine
             g_latestLayer2Result = g_layer2Engine.evaluate(sample, g_gasRingBuffer, g_powerRingBuffer);
 
-            // 3. Update 60-second gas history ring buffer
+            // 3. Evaluate Layer 3 Cryptographic Hash Chain Engine & Append Record
+            g_hashChainEngine.appendRecord(sample, g_latestLayer1Result, g_latestLayer2Result);
+
+            // 4. Update 60-second gas history ring buffer
             g_gasRingBuffer.add(sample);
 
-            // 4. Update 90-second power trailing history ring buffer
+            // 5. Update 90-second power trailing history ring buffer
             PowerSample pSample;
             pSample.timestamp = sample.timestamp;
             pSample.millisMs = sample.millisMs;
