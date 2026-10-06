@@ -15,7 +15,7 @@ This document details the software architecture, task execution model, inter-tas
 | **Bounded Sample Queue (`xQueueHandle`)** | `IMPLEMENTED` | Fixed capacity of 10 `SensorSample` items. |
 | **Bounded Ring Buffers (`RingBuffer<T, N>`)** | `IMPLEMENTED` | 60s Gas History (120 slots), 90s Power History (180 slots), zero heap allocations. |
 | **Health Monitoring Task (`HealthTask`)** | `IMPLEMENTED` | 5000 ms interval checking free heap, queue usage, sample drops, and jitter. |
-| **Layer 1 Physical Plausibility Engine** | `PLANNED` | Algorithm engine interface prepared; threshold tuning pending physical testing. |
+| **Layer 1 Physical Plausibility Engine** | `IMPLEMENTED` | Cross-modal analysis between gas signal ($V_{\text{sensor}}$) and trailing power history ($P_{\text{equipment}}$). |
 | **Layer 2 Sensor Identity Fingerprint** | `PLANNED` | Pending physical resolution of cold-boot vs heater-power architecture. |
 | **microSD Storage & Hash-Chain Task** | `PLANNED` | Block storage task structure prepared for Phase 3 integration. |
 | **WiFi Sync Client (`NetworkTask`)** | `PLANNED` | Asynchronous background client prepared for Phase 4. |
