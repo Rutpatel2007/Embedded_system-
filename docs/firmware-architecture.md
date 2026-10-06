@@ -105,7 +105,7 @@ When physical hardware becomes available:
 
 ---
 
-## 6. Layer 2 Sensor Identity Engine Specification (Phase 3B)
+## 6. Layer 2 Sensor Identity Engine Specification (Phase 3B Hardened)
 
 The Layer 2 Sensor Identity Engine evaluates statistical hardware characteristics of physical gas sensors (MQ-135) to verify sensor continuity and detect physical sensor substitution.
 
@@ -120,18 +120,38 @@ The Layer 2 Sensor Identity Engine evaluates statistical hardware characteristic
    $$\text{Similarity} = 1.0 - D_{\text{fp}}$$
    Guaranteed bounded range: $0.0 \le D_{\text{fp}} \le 1.0$ and $0.0 \le \text{Similarity} \le 1.0$.
 
-3. **Status Classification (UNVALIDATED DEVELOPMENT PARAMETERS)**:
+3. **Status Classification & Insufficient Features Semantics**:
    - $\text{Similarity} \ge 0.85 \implies \text{SENSOR\_OK}$
-   - $0.70 \le \text{Similarity} < 0.85 \implies \text{DEGRADED\_REVIEW}$ (Internal state, contract unchanged)
+   - $0.70 \le \text{Similarity} < 0.85 \implies \text{DEGRADED\_REVIEW}$ (Internal state, public data contract unchanged)
    - $\text{Similarity} < 0.70 \implies \text{SENSOR\_IDENTITY\_MISMATCH}$
    - No reference profile in NVS $\implies \text{UNENROLLED}$
-   - Valid features $< 2 \implies \text{INSUFFICIENT\_FEATURES}$ ($\text{similarityScore} = 0.0\text{f}$ representing NOT COMPUTABLE, not security alarm)
+   - Valid features $< 2 \implies \text{INSUFFICIENT\_FEATURES}$ ($\text{similarityScore} = 0.0\text{f}$ representing NOT COMPUTABLE, not a security mismatch alarm)
 
 4. **Security & Enrollment Lifecycle**:
    - Enrollment requires explicit authorized Serial command (`ENROLL_SENSOR_START`, `ENROLL_SENSOR_CONFIRM <password>`).
-   - Normal boot NEVER automatically enrolls an unknown sensor.
-   - Admin password verification (`L2_ADMIN_PASSWORD = "TrueSenseAdmin2026"`) strictly enforced without logging sensitive credentials.
+   - Normal boot **NEVER** automatically enrolls an unknown sensor or silently overwrites an existing valid NVS fingerprint.
+   - **Development Password Warning**: `L2_ADMIN_PASSWORD = "TrueSenseAdmin2026"` is **DEVELOPMENT ONLY — NOT PRODUCTION SECURITY**. Hardcoded compiled credentials must be replaced with hardware keystore or challenge-response before production. Credential strings are never printed to Serial or telemetry logs.
 
-5. **Hardware Constraints**:
-   - Domain 1 heater Continuous ON: MCU warm reboots set `warmupValid = false`, dynamically redistributing weights among active steady-state features without false alarm penalties.
+5. **Reboot Behavior & Heater Power Domain Rules**:
+   - **Cold Power-On**: Domain 1 heater starts cold. Warm-up curve capture is valid (`warmupValid = true`).
+   - **MCU Software Reset / Warm Reboot**: Domain 1 heater remains continuously powered. Warm-up feature is omitted (`warmupValid = false`), and weights automatically redistribute among active steady-state features without false alarm penalties.
+   - **Sensor Disconnection**: `gasValid = false` sets status to `INSUFFICIENT_FEATURES` without false identity mismatch alarms.
+
+6. **Test Suite Build Gating**:
+   - Controlled via `#define ENABLE_FIRMWARE_SELF_TESTS` in `firmware/include/config.h`.
+   - **Development Build** (Defined): Executes 12 Layer 1 tests and 28 Layer 2 deterministic tests during startup.
+   - **Production Build** (Commented out): Self-tests are bypassed entirely during boot for rapid startup.
+
+7. **Physically Unvalidated Development Parameters**:
+
+| Parameter | Symbol / Macro | Development Value | Physical Status | Calibration Requirement |
+| :--- | :--- | :--- | :--- | :--- |
+| **Similarity Threshold** | `FINGERPRINT_SIM_THRESHOLD` | `0.85f` | `UNVALIDATED` | Requires physical sensor swap tests across 10+ MQ-135 units |
+| **Review Threshold** | `FINGERPRINT_REVIEW_THRESHOLD` | `0.70f` | `UNVALIDATED` | Requires multi-day temperature/humidity drift logging |
+| **Baseline Voltage Guard** | $\epsilon_{\text{base}}$ | `0.05 V` | `UNVALIDATED` | Dependent on ESP32 ADC Vref calibration |
+| **Noise Variance Guard** | $\epsilon_{\text{noise}}$ | $1\times 10^{-6}\text{ V}^2$ | `UNVALIDATED` | Dependent on power supply ripple measurements |
+| **Response Slope Guard** | $\epsilon_{\text{slope}}$ | `0.001 V/s` | `UNVALIDATED` | Dependent on Domain 2 equipment airflow & gas chamber volume |
+| **Feature Weights** | $w_{\text{base}}, w_{\text{noise}}, w_{\text{slope}}, w_{\text{warmup}}$ | `0.35, 0.25, 0.20, 0.20` | `UNVALIDATED` | Requires feature importance PCA / discriminative power analysis |
+| **Enrollment Samples** | `minEnrollmentSamples` | `300` (~150s) | `UNVALIDATED` | Requires thermal equilibrium measurement of MQ-135 heater |
+
 

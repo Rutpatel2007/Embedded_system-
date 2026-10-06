@@ -47,13 +47,19 @@
 #define POWER_ACTIVE_THRESHOLD_MW 50.0f // Equipment active threshold in mW
 #define POWER_HISTORY_WINDOW_SEC  90     // 90-second trailing power history window
 
-// Layer 2 Sensor Identity Parameters (UNVALIDATED DEVELOPMENT THRESHOLDS)
-#define FINGERPRINT_POINTS          20     // Number of points in warm-up curve
+// Layer 2 Sensor Identity Parameters (UNVALIDATED DEVELOPMENT THRESHOLDS — REQUIRES PHYSICAL CALIBRATION)
+#define FINGERPRINT_POINTS          20     // Number of points in warm-up curve (UNVALIDATED)
 #define FINGERPRINT_SIM_THRESHOLD    0.85f // UNVALIDATED DEVELOPMENT THRESHOLD: Similarity >= 0.85 -> SENSOR_OK
 #define FINGERPRINT_REVIEW_THRESHOLD 0.70f // UNVALIDATED DEVELOPMENT THRESHOLD: 0.70 <= Similarity < 0.85 -> DEGRADED_REVIEW
 
-// Layer 2 Admin Security Password (FOR SERIAL ENROLLMENT AUTHORIZATION ONLY)
+// Layer 2 Admin Security Password (DEVELOPMENT ONLY — NOT PRODUCTION SECURITY)
+// WARNING: Hardcoded string for development serial authorization. Must be replaced with secure challenge-response or hardware keystore for production.
 #define L2_ADMIN_PASSWORD           "TrueSenseAdmin2026"
+
+// Development Self-Test Suite Build Gate
+// Uncomment to enable startup deterministic test suites (Layer 1 & Layer 2)
+// Comment out for production build to bypass test suite execution during boot
+#define ENABLE_FIRMWARE_SELF_TESTS
 
 // Layer 2 NVS Storage Configuration
 #define NVS_L2_NAMESPACE            "truesense_l2"

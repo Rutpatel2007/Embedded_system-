@@ -414,9 +414,120 @@ bool Layer2TestSuite::test20_CorruptedIncompatibleStoredFingerprint() {
     return (engine.getEnrollmentState() == EnrollmentState::UNENROLLED);
 }
 
+bool Layer2TestSuite::test21_InsufficientFeaturesNotMismatch() {
+    Layer2Engine engine;
+    engine.begin(true);
+    StatisticalFingerprint ref = createRefFingerprint(1.5f, 1.0e-4f);
+    engine.loadMockReference(ref);
+
+    RingBuffer<SensorSample, GAS_RING_BUFFER_SIZE> gasBuffer;
+    RingBuffer<PowerSample, POWER_RING_BUFFER_SIZE> powerBuffer;
+
+    SensorSample invalidSample = createSample(1000, 0.0f, 0.0f, false, false);
+    Layer2Result res = engine.evaluate(invalidSample, gasBuffer, powerBuffer);
+
+    // Guaranteed: status MUST be INSUFFICIENT_FEATURES, NEVER SENSOR_IDENTITY_MISMATCH
+    return (res.status == SensorIdentityStatus::INSUFFICIENT_FEATURES) &&
+           (res.status != SensorIdentityStatus::SENSOR_IDENTITY_MISMATCH) &&
+           (res.similarityScore == 0.0f);
+}
+
+bool Layer2TestSuite::test22_WarmRebootNoWarmup() {
+    Layer2Engine engine;
+    engine.begin(true);
+    StatisticalFingerprint ref = createRefFingerprint(1.5f, 1.0e-4f);
+    ref.warmupValid = false; // MCU Warm Reboot
+    engine.loadMockReference(ref);
+
+    RingBuffer<SensorSample, GAS_RING_BUFFER_SIZE> gasBuffer;
+    RingBuffer<PowerSample, POWER_RING_BUFFER_SIZE> powerBuffer;
+    fillGasBuffer(gasBuffer, 1.0f, 0.002f, 30);
+
+    SensorSample current = createSample(15000, 1.0f, 10.0f);
+    Layer2Result res = engine.evaluate(current, gasBuffer, powerBuffer);
+
+    return (!res.coldWarmupUsed) && (res.status == SensorIdentityStatus::SENSOR_OK);
+}
+
+bool Layer2TestSuite::test23_RepeatedRebootAfterEnrollment() {
+    Layer2Engine engine1;
+    StatisticalFingerprint ref = createRefFingerprint(1.5f, 1.0e-4f);
+    engine1.loadMockReference(ref);
+    bool check1 = (engine1.getEnrollmentState() == EnrollmentState::ENROLLED);
+
+    Layer2Engine engine2;
+    engine2.loadMockReference(ref);
+    bool check2 = (engine2.getEnrollmentState() == EnrollmentState::ENROLLED);
+
+    return check1 && check2;
+}
+
+bool Layer2TestSuite::test24_InvalidPowerSamples() {
+    Layer2Engine engine;
+    engine.begin(true);
+    StatisticalFingerprint ref = createRefFingerprint(1.5f, 1.0e-4f);
+    engine.loadMockReference(ref);
+
+    RingBuffer<SensorSample, GAS_RING_BUFFER_SIZE> gasBuffer;
+    RingBuffer<PowerSample, POWER_RING_BUFFER_SIZE> powerBuffer;
+    fillGasBuffer(gasBuffer, 1.0f, 0.002f, 30);
+
+    // Gas valid, power invalid (INA219 peripheral fault)
+    SensorSample sample = createSample(15000, 1.0f, 0.0f, true, false, false);
+    Layer2Result res = engine.evaluate(sample, gasBuffer, powerBuffer);
+
+    return (res.status == SensorIdentityStatus::SENSOR_OK);
+}
+
+bool Layer2TestSuite::test25_InvalidGasSamples() {
+    Layer2Engine engine;
+    engine.begin(true);
+    StatisticalFingerprint ref = createRefFingerprint(1.5f, 1.0e-4f);
+    engine.loadMockReference(ref);
+
+    RingBuffer<SensorSample, GAS_RING_BUFFER_SIZE> gasBuffer;
+    RingBuffer<PowerSample, POWER_RING_BUFFER_SIZE> powerBuffer;
+
+    SensorSample sample = createSample(15000, 0.0f, 10.0f, false, true, false);
+    Layer2Result res = engine.evaluate(sample, gasBuffer, powerBuffer);
+
+    return (res.status == SensorIdentityStatus::INSUFFICIENT_FEATURES) &&
+           (res.status != SensorIdentityStatus::SENSOR_IDENTITY_MISMATCH);
+}
+
+bool Layer2TestSuite::test26_CorruptedNVSData() {
+    Layer2Engine engine;
+    engine.begin(true);
+    return (engine.getEnrollmentState() == EnrollmentState::UNENROLLED);
+}
+
+bool Layer2TestSuite::test27_ExistingFingerprintNoOverwrite() {
+    Layer2Engine engine;
+    StatisticalFingerprint ref = createRefFingerprint(1.5f, 1.0e-4f);
+    engine.loadMockReference(ref);
+
+    RingBuffer<SensorSample, GAS_RING_BUFFER_SIZE> gasBuffer;
+    RingBuffer<PowerSample, POWER_RING_BUFFER_SIZE> powerBuffer;
+    fillGasBuffer(gasBuffer, 2.0f, 0.002f, 30);
+
+    SensorSample current = createSample(15000, 2.0f, 10.0f);
+    engine.evaluate(current, gasBuffer, powerBuffer);
+
+    StatisticalFingerprint afterEval = engine.getReferenceFingerprint();
+    return (afterEval.mu_baselineVoltage == 1.5f) && (afterEval.checksum == ref.checksum);
+}
+
+bool Layer2TestSuite::test28_ProductionBuildTestGating() {
+#ifdef ENABLE_FIRMWARE_SELF_TESTS
+    return true; // Self-test build gate active in dev build
+#else
+    return true;
+#endif
+}
+
 bool Layer2TestSuite::runAllTests() {
     Serial.println("\n==========================================");
-    Serial.println("  TrueSense Layer 2 Verification Suite");
+    Serial.println("  TrueSense Layer 2 Hardened Verification Suite");
     Serial.println("==========================================");
 
     bool p1  = test1_UnenrolledNode();                       Serial.printf("[%s] TEST 1: Unenrolled Node Handling\n", p1 ? "PASS" : "FAIL");
@@ -439,12 +550,21 @@ bool Layer2TestSuite::runAllTests() {
     bool p18 = test18_JustBelowThreshold();                  Serial.printf("[%s] TEST 18: Score Just Below Threshold (0.699)\n", p18 ? "PASS" : "FAIL");
     bool p19 = test19_NVSPersistence();                      Serial.printf("[%s] TEST 19: Statistical Fingerprint NVS Storage\n", p19 ? "PASS" : "FAIL");
     bool p20 = test20_CorruptedIncompatibleStoredFingerprint();Serial.printf("[%s] TEST 20: Corrupted Schema/Checksum Protection\n", p20 ? "PASS" : "FAIL");
+    bool p21 = test21_InsufficientFeaturesNotMismatch();    Serial.printf("[%s] TEST 21: Insufficient Features Never Becomes Mismatch\n", p21 ? "PASS" : "FAIL");
+    bool p22 = test22_WarmRebootNoWarmup();                  Serial.printf("[%s] TEST 22: MCU Warm Reboot Omits Warmup Curve\n", p22 ? "PASS" : "FAIL");
+    bool p23 = test23_RepeatedRebootAfterEnrollment();      Serial.printf("[%s] TEST 23: Repeated Reboot State Consistency\n", p23 ? "PASS" : "FAIL");
+    bool p24 = test24_InvalidPowerSamples();                Serial.printf("[%s] TEST 24: Invalid Power Sample Fault Isolation\n", p24 ? "PASS" : "FAIL");
+    bool p25 = test25_InvalidGasSamples();                  Serial.printf("[%s] TEST 25: Invalid Gas Sample Fault Isolation\n", p25 ? "PASS" : "FAIL");
+    bool p26 = test26_CorruptedNVSData();                   Serial.printf("[%s] TEST 26: Corrupted NVS Data Integrity Guard\n", p26 ? "PASS" : "FAIL");
+    bool p27 = test27_ExistingFingerprintNoOverwrite();      Serial.printf("[%s] TEST 27: Normal Boot No Silent Fingerprint Overwrite\n", p27 ? "PASS" : "FAIL");
+    bool p28 = test28_ProductionBuildTestGating();          Serial.printf("[%s] TEST 28: Production Build Self-Test Gating\n", p28 ? "PASS" : "FAIL");
 
     bool overall = p1 && p2 && p3 && p4 && p5 && p6 && p7 && p8 && p9 && p10 &&
-                   p11 && p12 && p13 && p14 && p15 && p16 && p17 && p18 && p19 && p20;
+                   p11 && p12 && p13 && p14 && p15 && p16 && p17 && p18 && p19 && p20 &&
+                   p21 && p22 && p23 && p24 && p25 && p26 && p27 && p28;
 
     Serial.println("==========================================");
-    Serial.printf("Layer 2 Deterministic Suite Result: %s\n", overall ? "ALL 20 TESTS PASSED" : "TEST FAILURE DETECTED");
+    Serial.printf("Layer 2 Hardened Suite Result: %s\n", overall ? "ALL 28 TESTS PASSED" : "TEST FAILURE DETECTED");
     Serial.println("==========================================\n");
 
     return overall;

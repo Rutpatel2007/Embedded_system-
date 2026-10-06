@@ -36,11 +36,16 @@ void setup() {
     Serial.printf("CPU Cores: %d @ %d MHz\n", ESP.getChipCores(), ESP.getCpuFreqMHz());
     Serial.printf("Free Heap: %d bytes\n", ESP.getFreeHeap());
 
+#ifdef ENABLE_FIRMWARE_SELF_TESTS
+    Serial.println("\n[BUILD CONFIG] Development Build: Executing Self-Test Suites");
     // Execute Independent Layer 1 Deterministic Software Test Suite
     Layer1TestSuite::runAllTests();
 
     // Execute Independent Layer 2 Deterministic Software Test Suite
     Layer2TestSuite::runAllTests();
+#else
+    Serial.println("\n[BUILD CONFIG] Production Build: Self-Tests Bypassed (Normal Boot)");
+#endif
 
 #ifdef USE_MOCK_SENSORS
     activeProvider = &mockProvider;
