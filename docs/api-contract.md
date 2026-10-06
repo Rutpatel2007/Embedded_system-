@@ -62,7 +62,7 @@ Ingests a batch of records uploaded by the ESP32 node during WiFi synchronizatio
       "plausibility": "NORMAL",
       "fingerprint_status": "SENSOR_OK",
       "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-      "hash": "3e7cb4f09d8aa0e71691168f187a5a3a2e379bc83f0631bfaeb24b2165215d2a"
+      "hash": "2e8e7995bb9576188874c028488bafb8a5973133134cbb123182b3c79051dcd3"
     }
   ]
 }
@@ -107,7 +107,7 @@ Fetches historical readings for a given device for dashboard visualization.
       "plausibility": "NORMAL",
       "fingerprint_status": "SENSOR_OK",
       "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-      "hash": "3e7cb4f09d8aa0e71691168f187a5a3a2e379bc83f0631bfaeb24b2165215d2a",
+      "hash": "2e8e7995bb9576188874c028488bafb8a5973133134cbb123182b3c79051dcd3",
       "is_valid_hash": true,
       "is_valid_chain": true
     }

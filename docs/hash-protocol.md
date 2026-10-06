@@ -77,7 +77,7 @@ TS001|1750000000|42.381|823.420|NORMAL|SENSOR_OK|0000000000000000000000000000000
 
 ### Resulting SHA-256 Digest ($H_1$):
 ```text
-3e7cb4f09d8aa0e71691168f187a5a3a2e379bc83f0631bfaeb24b2165215d2a
+2e8e7995bb9576188874c028488bafb8a5973133134cbb123182b3c79051dcd3
 ```
 *(Note: Verification tests in C++ and Python will validate against this exact canonical example).*
 
