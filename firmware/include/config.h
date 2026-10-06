@@ -51,4 +51,33 @@
 #define FINGERPRINT_POINTS       20     // Number of points in warm-up curve
 #define FINGERPRINT_SIM_THRESHOLD 0.85f // Cosine similarity threshold for identity match
 
+// ==========================================
+// Phase 2 RTOS, Queue & Ring Buffer Config
+// ==========================================
+
+// Uncomment to enable simulation mode (hardware-independent test harness)
+#define USE_MOCK_SENSORS
+
+// FreeRTOS Queue & Ring Buffer Sizes
+#define SENSOR_QUEUE_LEN          10     // Bounded queue capacity between SensorTask & AlgorithmTask
+#define GAS_RING_BUFFER_SIZE     120     // 60-second rolling gas history (120 samples @ 500ms)
+#define POWER_RING_BUFFER_SIZE   180     // 90-second trailing power history (180 samples @ 500ms)
+
+// FreeRTOS Task Stack Sizes & Priorities
+#define STACK_SIZE_SENSOR_TASK    4096
+#define STACK_SIZE_ALGO_TASK      4096
+#define STACK_SIZE_HEALTH_TASK    2048
+
+#define PRIORITY_SENSOR_TASK      3      // High priority for acquisition timing
+#define PRIORITY_ALGO_TASK        2      // Medium priority for processing
+#define PRIORITY_HEALTH_TASK      1      // Low priority for diagnostics
+
+// Mock Simulation Scenarios
+enum MockScenario {
+    SCENARIO_NORMAL,     // Baseline gas + low noise + stable equipment
+    SCENARIO_PLAUSIBLE,  // Equipment ON -> delayed gas emission rise -> equipment OFF
+    SCENARIO_SUSPICIOUS, // Unexpected gas spike with 0 mW equipment activity
+    SCENARIO_FAULT       // Sensor disconnection / invalid ADC / timestamp failure
+};
+
 #endif // CONFIG_H
