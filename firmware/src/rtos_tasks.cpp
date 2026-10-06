@@ -106,9 +106,11 @@ void sensorTask(void* pvParameters) {
 
         SensorSample sample;
         memset(&sample, 0, sizeof(SensorSample));
+        sample.millisMs = currentMs;
 
         if (g_sensorProvider != NULL) {
             g_sensorProvider->readSample(sample);
+            sample.millisMs = currentMs; // Preserve actual monotonic timestamp
         }
 
         // Push sample to bounded FreeRTOS queue (non-blocking if queue full)
@@ -141,9 +143,9 @@ void algorithmTask(void* pvParameters) {
             g_powerRingBuffer.add(pSample);
 
             // Print machine-readable development CSV telemetry row over Serial
-            // Format: timestamp,gasRaw,gasVoltage,sensorVoltage,power_mW,equipmentActive,gasValid,powerValid
-            Serial.printf("[TELEMETRY] %u,%u,%.3f,%.3f,%.3f,%d,%d,%d\n",
-                          sample.timestamp, sample.gasRaw, sample.gasVoltage, sample.sensorVoltage,
+            // Format: millisMs,timestamp,gasRaw,gasVoltage,sensorVoltage,power_mW,equipmentActive,gasValid,powerValid
+            Serial.printf("[TELEMETRY] %u,%u,%u,%.3f,%.3f,%.3f,%d,%d,%d\n",
+                          sample.millisMs, sample.timestamp, sample.gasRaw, sample.gasVoltage, sample.sensorVoltage,
                           sample.power_mW, sample.equipmentActive ? 1 : 0,
                           sample.gasValid ? 1 : 0, sample.powerValid ? 1 : 0);
         }

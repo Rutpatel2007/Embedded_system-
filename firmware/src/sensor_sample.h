@@ -6,6 +6,7 @@
 // Canonical internal acquisition structure for a single 500ms sensor snapshot
 struct SensorSample {
     uint32_t timestamp;        // DS3231 Unix epoch timestamp in seconds
+    uint32_t millisMs;         // Monotonic millisecond counter for sub-second jitter diagnostic
 
     uint16_t gasRaw;           // Raw 12-bit ADC value (0 - 4095)
     float gasVoltage;          // Voltage at ESP32 ADC pin (0 - 3.3V)
