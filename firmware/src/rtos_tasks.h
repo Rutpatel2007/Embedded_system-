@@ -6,12 +6,15 @@
 #include "sensor_provider.h"
 #include "ring_buffer.h"
 #include "layer1_plausibility.h"
+#include "layer2_fingerprint.h"
 #include "../include/config.h"
 
-// Global Ring Buffers, Layer 1 Engine & Health Telemetry Accessors
+// Global Ring Buffers, Layer 1 Engine, Layer 2 Engine & Health Telemetry Accessors
 const RingBuffer<SensorSample, GAS_RING_BUFFER_SIZE>& getGasRingBuffer();
 const RingBuffer<PowerSample, POWER_RING_BUFFER_SIZE>& getPowerRingBuffer();
 const Layer1Result& getLatestLayer1Result();
+const Layer2Result& getLatestLayer2Result();
+Layer2Engine& getLayer2Engine();
 
 uint32_t getProcessedSampleCount();
 uint32_t getDroppedSampleCount();

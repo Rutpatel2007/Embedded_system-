@@ -47,9 +47,18 @@
 #define POWER_ACTIVE_THRESHOLD_MW 50.0f // Equipment active threshold in mW
 #define POWER_HISTORY_WINDOW_SEC  90     // 90-second trailing power history window
 
-// Layer 2 Sensor Identity Parameters
-#define FINGERPRINT_POINTS       20     // Number of points in warm-up curve
-#define FINGERPRINT_SIM_THRESHOLD 0.85f // Cosine similarity threshold for identity match
+// Layer 2 Sensor Identity Parameters (UNVALIDATED DEVELOPMENT THRESHOLDS)
+#define FINGERPRINT_POINTS          20     // Number of points in warm-up curve
+#define FINGERPRINT_SIM_THRESHOLD    0.85f // UNVALIDATED DEVELOPMENT THRESHOLD: Similarity >= 0.85 -> SENSOR_OK
+#define FINGERPRINT_REVIEW_THRESHOLD 0.70f // UNVALIDATED DEVELOPMENT THRESHOLD: 0.70 <= Similarity < 0.85 -> DEGRADED_REVIEW
+
+// Layer 2 Admin Security Password (FOR SERIAL ENROLLMENT AUTHORIZATION ONLY)
+#define L2_ADMIN_PASSWORD           "TrueSenseAdmin2026"
+
+// Layer 2 NVS Storage Configuration
+#define NVS_L2_NAMESPACE            "truesense_l2"
+#define NVS_L2_KEY_FINGERPRINT      "enrolled_fp"
+#define L2_SCHEMA_VERSION           0x0001
 
 // ==========================================
 // Phase 2 RTOS, Queue & Ring Buffer Config
@@ -74,10 +83,16 @@
 
 // Mock Simulation Scenarios
 enum MockScenario {
-    SCENARIO_NORMAL,     // Baseline gas + low noise + stable equipment
-    SCENARIO_PLAUSIBLE,  // Equipment ON -> delayed gas emission rise -> equipment OFF
-    SCENARIO_SUSPICIOUS, // Unexpected gas spike with 0 mW equipment activity
-    SCENARIO_FAULT       // Sensor disconnection / invalid ADC / timestamp failure
+    SCENARIO_NORMAL,               // Baseline gas + low noise + stable equipment
+    SCENARIO_PLAUSIBLE,            // Equipment ON -> delayed gas emission rise -> equipment OFF
+    SCENARIO_SUSPICIOUS,           // Unexpected gas spike with 0 mW equipment activity
+    SCENARIO_FAULT,                // Sensor disconnection / invalid ADC / timestamp failure
+    SCENARIO_MATCHING_SENSOR,      // Live sensor matching reference fingerprint
+    SCENARIO_REPLACED_SENSOR,      // Live sensor baseline shifted significantly (e.g. 2.2V vs 1.0V)
+    SCENARIO_UNENROLLED_NODE,      // Sensor identity unenrolled
+    SCENARIO_INSUFFICIENT_HISTORY, // Buffer contains <2 valid features
+    SCENARIO_WARM_REBOOT,          // MCU reboot without 5V power cycle (warmupValid = false)
+    SCENARIO_COLD_BOOT             // Cold 5V power-on (warmupValid = true)
 };
 
 #endif // CONFIG_H

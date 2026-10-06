@@ -139,6 +139,51 @@ bool MockSensorProvider::readSample(SensorSample& sample) {
             sample.powerValid = false;
             sample.timestampValid = true;
             break;
+
+        case SCENARIO_MATCHING_SENSOR:
+        case SCENARIO_WARM_REBOOT:
+        case SCENARIO_COLD_BOOT:
+            // Enrolled baseline matching gasVoltage (~1.0V)
+            sample.gasRaw = 1241;
+            sample.gasVoltage = 1.0f + noise;
+            sample.sensorVoltage = sample.gasVoltage * 1.5f;
+            sample.gasValid = true;
+
+            sample.busVoltage = 5.0f;
+            sample.current_mA = 2.0f;
+            sample.power_mW = 10.0f;
+            sample.powerValid = true;
+            sample.equipmentActive = false;
+            break;
+
+        case SCENARIO_REPLACED_SENSOR:
+        case SCENARIO_UNENROLLED_NODE:
+            // Shifted baseline gasVoltage (~2.2V -> 3.3V sensorVoltage vs 1.5V ref)
+            sample.gasRaw = 2730;
+            sample.gasVoltage = 2.2f + noise;
+            sample.sensorVoltage = sample.gasVoltage * 1.5f;
+            sample.gasValid = true;
+
+            sample.busVoltage = 5.0f;
+            sample.current_mA = 2.0f;
+            sample.power_mW = 10.0f;
+            sample.powerValid = true;
+            sample.equipmentActive = false;
+            break;
+
+        case SCENARIO_INSUFFICIENT_HISTORY:
+            // Invalid gas readings to simulate missing/empty buffer state
+            sample.gasRaw = 0;
+            sample.gasVoltage = 0.0f;
+            sample.sensorVoltage = 0.0f;
+            sample.gasValid = false;
+
+            sample.busVoltage = 5.0f;
+            sample.current_mA = 2.0f;
+            sample.power_mW = 10.0f;
+            sample.powerValid = true;
+            sample.equipmentActive = false;
+            break;
     }
 
     return sample.gasValid && sample.powerValid && sample.timestampValid;

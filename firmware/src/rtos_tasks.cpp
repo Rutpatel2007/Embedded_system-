@@ -15,9 +15,12 @@ static uint32_t g_processedSampleCount = 0;
 static uint32_t g_droppedSampleCount = 0;
 static float g_avgJitterMs = 0.0f;
 
-// Layer 1 Plausibility Engine Instance
+// Layer 1 & Layer 2 Engine Instances
 static Layer1PlausibilityEngine g_layer1Engine;
 static Layer1Result g_latestLayer1Result;
+
+static Layer2Engine g_layer2Engine;
+static Layer2Result g_latestLayer2Result;
 
 const RingBuffer<SensorSample, GAS_RING_BUFFER_SIZE>& getGasRingBuffer() {
     return g_gasRingBuffer;
@@ -29,6 +32,14 @@ const RingBuffer<PowerSample, POWER_RING_BUFFER_SIZE>& getPowerRingBuffer() {
 
 const Layer1Result& getLatestLayer1Result() {
     return g_latestLayer1Result;
+}
+
+const Layer2Result& getLatestLayer2Result() {
+    return g_latestLayer2Result;
+}
+
+Layer2Engine& getLayer2Engine() {
+    return g_layer2Engine;
 }
 
 uint32_t getProcessedSampleCount() {
@@ -46,6 +57,9 @@ float getAverageJitterMs() {
 bool initRTOSTasks(ISensorProvider* provider) {
     if (provider == NULL) return false;
     g_sensorProvider = provider;
+
+    // Initialize Layer 2 Sensor Identity Engine
+    g_layer2Engine.begin(true);
 
     // Create bounded FreeRTOS queue
     g_sampleQueue = xQueueCreate(SENSOR_QUEUE_LEN, sizeof(SensorSample));
@@ -135,6 +149,7 @@ void sensorTask(void* pvParameters) {
 void algorithmTask(void* pvParameters) {
     SensorSample sample;
     static PlausibilityStatus lastStatus = PlausibilityStatus::NORMAL;
+    static SensorIdentityStatus lastL2Status = SensorIdentityStatus::UNENROLLED;
     static uint32_t sampleCounter = 0;
 
     for (;;) {
@@ -146,10 +161,13 @@ void algorithmTask(void* pvParameters) {
             // 1. Evaluate Layer 1 Cross-Modal Physical Plausibility Engine
             g_latestLayer1Result = g_layer1Engine.evaluate(sample, g_gasRingBuffer, g_powerRingBuffer);
 
-            // 2. Update 60-second gas history ring buffer
+            // 2. Evaluate Layer 2 Sensor Identity Engine
+            g_latestLayer2Result = g_layer2Engine.evaluate(sample, g_gasRingBuffer, g_powerRingBuffer);
+
+            // 3. Update 60-second gas history ring buffer
             g_gasRingBuffer.add(sample);
 
-            // 3. Update 90-second power trailing history ring buffer
+            // 4. Update 90-second power trailing history ring buffer
             PowerSample pSample;
             pSample.timestamp = sample.timestamp;
             pSample.millisMs = sample.millisMs;
@@ -157,29 +175,31 @@ void algorithmTask(void* pvParameters) {
             pSample.equipmentActive = sample.equipmentActive;
             g_powerRingBuffer.add(pSample);
 
-            // 4. Print machine-readable development CSV telemetry row over Serial
+            // 5. Print machine-readable development CSV telemetry row over Serial
             // Format: millisMs,timestamp,gasRaw,gasVoltage,sensorVoltage,power_mW,equipmentActive,gasValid,powerValid
             Serial.printf("[TELEMETRY] %u,%u,%u,%.3f,%.3f,%.3f,%d,%d,%d\n",
                           sample.millisMs, sample.timestamp, sample.gasRaw, sample.gasVoltage, sample.sensorVoltage,
                           sample.power_mW, sample.equipmentActive ? 1 : 0,
                           sample.gasValid ? 1 : 0, sample.powerValid ? 1 : 0);
 
-            // 5. Rate-limited Layer 1 Diagnostic Output (Prints on status change OR every 10 samples ~ 5 sec)
-            if (g_latestLayer1Result.status != lastStatus || (sampleCounter % 10 == 0)) {
+            // 6. Rate-limited Layer 1 & Layer 2 Diagnostic Output
+            if (g_latestLayer1Result.status != lastStatus || g_latestLayer2Result.status != lastL2Status || (sampleCounter % 10 == 0)) {
                 lastStatus = g_latestLayer1Result.status;
+                lastL2Status = g_latestLayer2Result.status;
 
                 const char* statusStr = "NORMAL";
                 if (g_latestLayer1Result.status == PlausibilityStatus::PLAUSIBLE) statusStr = "PLAUSIBLE";
                 else if (g_latestLayer1Result.status == PlausibilityStatus::SUSPICIOUS) statusStr = "SUSPICIOUS";
 
-                Serial.printf("[LAYER1 DIAG] gas=%.3fV, baseline=%.3fV, ratio=%.2f, power=%.1fmW, active=%d, timeSincePwr=%ums -> STATUS: %s\n",
-                              g_latestLayer1Result.currentGas,
-                              g_latestLayer1Result.baselineGas,
-                              g_latestLayer1Result.gasChangeRatio,
-                              g_latestLayer1Result.recentPower,
-                              g_latestLayer1Result.powerActivityDetected ? 1 : 0,
-                              g_latestLayer1Result.timeSincePowerActivityMs,
-                              statusStr);
+                const char* l2Str = "UNENROLLED";
+                if (g_latestLayer2Result.status == SensorIdentityStatus::SENSOR_OK) l2Str = "SENSOR_OK";
+                else if (g_latestLayer2Result.status == SensorIdentityStatus::DEGRADED_REVIEW) l2Str = "DEGRADED_REVIEW";
+                else if (g_latestLayer2Result.status == SensorIdentityStatus::SENSOR_IDENTITY_MISMATCH) l2Str = "SENSOR_IDENTITY_MISMATCH";
+                else if (g_latestLayer2Result.status == SensorIdentityStatus::INSUFFICIENT_FEATURES) l2Str = "INSUFFICIENT_FEATURES";
+
+                Serial.printf("[ALGO DIAG] L1: %s | L2: %s (sim=%.2f, dist=%.2f, features=%d)\n",
+                              statusStr, l2Str, g_latestLayer2Result.similarityScore,
+                              g_latestLayer2Result.featureDistance, g_latestLayer2Result.validFeatureCount);
             }
         }
     }

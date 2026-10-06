@@ -16,7 +16,7 @@ This document details the software architecture, task execution model, inter-tas
 | **Bounded Ring Buffers (`RingBuffer<T, N>`)** | `IMPLEMENTED` | 60s Gas History (120 slots), 90s Power History (180 slots), zero heap allocations. |
 | **Health Monitoring Task (`HealthTask`)** | `IMPLEMENTED` | 5000 ms interval checking free heap, queue usage, sample drops, and jitter. |
 | **Layer 1 Physical Plausibility Engine** | `IMPLEMENTED` | Cross-modal analysis between gas signal ($V_{\text{sensor}}$) and trailing power history ($P_{\text{equipment}}$). |
-| **Layer 2 Sensor Identity Fingerprint** | `PLANNED` | Pending physical resolution of cold-boot vs heater-power architecture. |
+| **Layer 2 Sensor Identity Fingerprint** | `IMPLEMENTED` | Phase 3B completed. Statistical reference profile in NVS, bounded math, internal `DEGRADED_REVIEW`, serial authorized enrollment. |
 | **microSD Storage & Hash-Chain Task** | `PLANNED` | Block storage task structure prepared for Phase 3 integration. |
 | **WiFi Sync Client (`NetworkTask`)** | `PLANNED` | Asynchronous background client prepared for Phase 4. |
 | **MQ-135 Load Resistor $R_L$ & PPM Conversion** | `UNVALIDATED` | Sensor resistance ratio and PPM math pending physical module measurement. |
@@ -102,3 +102,36 @@ When physical hardware becomes available:
    ```
 3. Recompile and upload via PlatformIO (`pio run -t upload`).
 4. The system will automatically select `HardwareSensorProvider` without changing any task, queue, or algorithm code.
+
+---
+
+## 6. Layer 2 Sensor Identity Engine Specification (Phase 3B)
+
+The Layer 2 Sensor Identity Engine evaluates statistical hardware characteristics of physical gas sensors (MQ-135) to verify sensor continuity and detect physical sensor substitution.
+
+### Mathematical Framework & Bounded Distance:
+
+1. **Normalized Feature Distance**:
+   $$d_i = \min\left(1.0, \frac{|x_{\text{live}} - \mu_i|}{k \cdot \sigma_i + \epsilon_i}\right)$$
+   Where $k=3.0$, $\epsilon_{\text{base}}=0.05\text{V}$, $\epsilon_{\text{noise}}=1\times 10^{-6}\text{V}^2$, $\epsilon_{\text{slope}}=0.001\text{V/s}$.
+
+2. **Total Feature Distance & Similarity**:
+   $$D_{\text{fp}} = \frac{\sum w_i d_i}{\sum w_i}$$
+   $$\text{Similarity} = 1.0 - D_{\text{fp}}$$
+   Guaranteed bounded range: $0.0 \le D_{\text{fp}} \le 1.0$ and $0.0 \le \text{Similarity} \le 1.0$.
+
+3. **Status Classification (UNVALIDATED DEVELOPMENT PARAMETERS)**:
+   - $\text{Similarity} \ge 0.85 \implies \text{SENSOR\_OK}$
+   - $0.70 \le \text{Similarity} < 0.85 \implies \text{DEGRADED\_REVIEW}$ (Internal state, contract unchanged)
+   - $\text{Similarity} < 0.70 \implies \text{SENSOR\_IDENTITY\_MISMATCH}$
+   - No reference profile in NVS $\implies \text{UNENROLLED}$
+   - Valid features $< 2 \implies \text{INSUFFICIENT\_FEATURES}$ ($\text{similarityScore} = 0.0\text{f}$ representing NOT COMPUTABLE, not security alarm)
+
+4. **Security & Enrollment Lifecycle**:
+   - Enrollment requires explicit authorized Serial command (`ENROLL_SENSOR_START`, `ENROLL_SENSOR_CONFIRM <password>`).
+   - Normal boot NEVER automatically enrolls an unknown sensor.
+   - Admin password verification (`L2_ADMIN_PASSWORD = "TrueSenseAdmin2026"`) strictly enforced without logging sensitive credentials.
+
+5. **Hardware Constraints**:
+   - Domain 1 heater Continuous ON: MCU warm reboots set `warmupValid = false`, dynamically redistributing weights among active steady-state features without false alarm penalties.
+
