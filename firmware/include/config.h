@@ -24,8 +24,8 @@
 #define RELAY_PIN 4
 
 // I2C Peripheral Addresses
-#define INA219_ADDRESS 0x40
-#define RTC_ADDRESS    0x68
+#define INA219_I2C_ADDRESS 0x40
+#define RTC_ADDRESS        0x68
 
 // ==========================================
 // Sensor & Algorithm Operating Constants
@@ -33,7 +33,7 @@
 // ==========================================
 
 // MQ-135 Sampling & Attenuation Settings
-#define MQ_ADC_ATTEN           ADC_ATTEN_DB_11 // 0-3.3V range
+#define MQ_ADC_ATTEN           ADC_11db        // 0-3.3V range
 #define MQ_DIVIDER_R1_OHMS     10000.0f         // Top resistor in voltage divider
 #define MQ_DIVIDER_R2_OHMS     20000.0f         // Bottom resistor in voltage divider
 
