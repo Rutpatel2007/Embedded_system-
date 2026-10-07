@@ -77,8 +77,8 @@ class ReadingIngestResponse(BaseModel):
 class HistoricalReadingItem(BaseModel):
     device_id: str
     timestamp: int
-    gas_ppm: Decimal
-    power_mW: Decimal
+    gas_ppm: float
+    power_mW: float
     plausibility: str
     fingerprint_status: str
     previous_hash: str = Field(min_length=64, max_length=64)

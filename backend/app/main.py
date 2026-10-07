@@ -225,7 +225,7 @@ def get_readings(
 
     total_records = query.count()
 
-    records = query.order_by(Reading.timestamp.desc()).limit(limit + 1).all()
+    records = query.order_by(Reading.id.desc()).limit(limit + 1).all()
     readings_to_return = records[:limit]
 
     response_readings = []
@@ -251,8 +251,8 @@ def get_readings(
             preceding_db_rec = (
                 db.query(Reading)
                 .filter(Reading.device_id == device_id)
-                .filter(Reading.timestamp < rec.timestamp)
-                .order_by(Reading.timestamp.desc())
+                .filter(Reading.id < rec.id)
+                .order_by(Reading.id.desc())
                 .first()
             )
             if preceding_db_rec is not None:

@@ -134,3 +134,48 @@ def test_tampered_hash_and_chain():
     assert r_1020["is_valid_hash"] is False
     assert r_1000["is_valid_hash"] is True
     assert r_1000["is_valid_chain"] is True
+
+def test_json_number_types():
+    register_device()
+    ingest_chain(count=1)
+    res = client.get("/readings/TS001")
+    r = res.json()["readings"][0]
+    assert isinstance(r["gas_ppm"], float) or isinstance(r["gas_ppm"], int)
+    assert isinstance(r["power_mW"], float) or isinstance(r["power_mW"], int)
+
+def test_same_timestamp_chain():
+    register_device()
+    readings = []
+    prev_hash = GENESIS_HASH
+    for i in range(3):
+        t = 1500
+        gas = Decimal("42.000") + Decimal(i)
+        pwr = Decimal("820.000") + Decimal(i)
+        h = calculate_hash("TS001", t, gas, pwr, "NORMAL", "SENSOR_OK", prev_hash)
+        readings.append({
+            "device_id": "TS001", "timestamp": t, "gas_ppm": str(gas), "power_mW": str(pwr),
+            "plausibility": "NORMAL", "fingerprint_status": "SENSOR_OK",
+            "previous_hash": prev_hash, "hash": h
+        })
+        prev_hash = h
+    client.post("/readings/ingest", json={"device_id": "TS001", "readings": readings})
+    
+    res = client.get("/readings/TS001")
+    data = res.json()
+    assert len(data["readings"]) == 3
+    # Check JSON output is numeric and order is descending ID (which means reversed insertion)
+    assert data["readings"][0]["gas_ppm"] == 44.0
+    assert data["readings"][1]["gas_ppm"] == 43.0
+    assert data["readings"][2]["gas_ppm"] == 42.0
+    
+    for r in data["readings"]:
+        assert r["is_valid_chain"] is True
+
+def test_limit_one_valid_chain():
+    register_device()
+    ingest_chain(count=3)
+    res = client.get("/readings/TS001?limit=1")
+    data = res.json()
+    assert len(data["readings"]) == 1
+    assert data["readings"][0]["is_valid_chain"] is True
+    assert data["readings"][0]["is_valid_hash"] is True
