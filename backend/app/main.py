@@ -19,6 +19,7 @@ from app.schemas import (
     ReadingIngestRequest,
     ReadingIngestResponse,
     HistoricalReadingsResponse,
+    ChainVerificationResponse,
 )
 
 
@@ -279,4 +280,64 @@ def get_readings(
         device_id=device_id,
         total_records=total_records,
         readings=response_readings
+    )
+
+
+@app.get(
+    "/verify/{device_id}",
+    response_model=ChainVerificationResponse,
+    status_code=status.HTTP_200_OK,
+)
+def verify_chain(device_id: str, db: Session = Depends(get_db)):
+    device = (
+        db.query(Device)
+        .filter(Device.device_id == device_id)
+        .first()
+    )
+
+    if device is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Device {device_id} is not registered",
+        )
+
+    readings = (
+        db.query(Reading)
+        .filter(Reading.device_id == device_id)
+        .order_by(Reading.id.asc())
+        .all()
+    )
+
+    tampered_records = 0
+    chain_breaks = 0
+    expected_previous_hash = "0" * 64
+
+    for record in readings:
+        is_valid = verify_hash(
+            device_id=record.device_id,
+            timestamp=record.timestamp,
+            gas_ppm=record.gas_ppm,
+            power_mW=record.power_mW,
+            plausibility=record.plausibility.value,
+            fingerprint_status=record.fingerprint_status.value,
+            previous_hash=record.previous_hash,
+            expected_hash=record.hash,
+        )
+
+        if not is_valid:
+            tampered_records += 1
+
+        if record.previous_hash != expected_previous_hash:
+            chain_breaks += 1
+
+        expected_previous_hash = record.hash
+
+    chain_valid = (tampered_records == 0) and (chain_breaks == 0)
+
+    return ChainVerificationResponse(
+        device_id=device_id,
+        chain_valid=chain_valid,
+        total_records_checked=len(readings),
+        tampered_records=tampered_records,
+        chain_breaks=chain_breaks,
     )

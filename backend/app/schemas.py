@@ -90,3 +90,9 @@ class HistoricalReadingsResponse(BaseModel):
     device_id: str
     total_records: int
     readings: list[HistoricalReadingItem]
+class ChainVerificationResponse(BaseModel):
+    device_id: str
+    chain_valid: bool
+    total_records_checked: int
+    tampered_records: int
+    chain_breaks: int
