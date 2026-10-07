@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from typing import Optional
+from fastapi import Depends, FastAPI, HTTPException, status, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,7 @@ from app.schemas import (
     DeviceRegisterResponse,
     ReadingIngestRequest,
     ReadingIngestResponse,
+    HistoricalReadingsResponse,
 )
 
 
@@ -188,4 +190,93 @@ def ingest_readings(
         status="success",
         accepted_count=len(ingest_data.readings),
         last_synced_timestamp=ingest_data.readings[-1].timestamp,
+    )
+
+@app.get(
+    "/readings/{device_id}",
+    response_model=HistoricalReadingsResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_readings(
+    device_id: str,
+    limit: int = Query(100, ge=1, le=1000),
+    start_time: Optional[int] = Query(None),
+    end_time: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    device = (
+        db.query(Device)
+        .filter(Device.device_id == device_id)
+        .first()
+    )
+
+    if device is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Device {device_id} is not registered",
+        )
+
+    query = db.query(Reading).filter(Reading.device_id == device_id)
+
+    if start_time is not None:
+        query = query.filter(Reading.timestamp >= start_time)
+    if end_time is not None:
+        query = query.filter(Reading.timestamp <= end_time)
+
+    total_records = query.count()
+
+    records = query.order_by(Reading.timestamp.desc()).limit(limit + 1).all()
+    readings_to_return = records[:limit]
+
+    response_readings = []
+
+    for i, rec in enumerate(readings_to_return):
+        is_valid_hash = verify_hash(
+            device_id=rec.device_id,
+            timestamp=rec.timestamp,
+            gas_ppm=rec.gas_ppm,
+            power_mW=rec.power_mW,
+            plausibility=rec.plausibility.value,
+            fingerprint_status=rec.fingerprint_status.value,
+            previous_hash=rec.previous_hash,
+            expected_hash=rec.hash,
+        )
+
+        is_valid_chain = False
+        if i + 1 < len(records):
+            preceding_rec = records[i + 1]
+            if rec.previous_hash == preceding_rec.hash:
+                is_valid_chain = True
+        else:
+            preceding_db_rec = (
+                db.query(Reading)
+                .filter(Reading.device_id == device_id)
+                .filter(Reading.timestamp < rec.timestamp)
+                .order_by(Reading.timestamp.desc())
+                .first()
+            )
+            if preceding_db_rec is not None:
+                if rec.previous_hash == preceding_db_rec.hash:
+                    is_valid_chain = True
+            else:
+                if rec.previous_hash == "0" * 64:
+                    is_valid_chain = True
+
+        response_readings.append({
+            "device_id": rec.device_id,
+            "timestamp": rec.timestamp,
+            "gas_ppm": rec.gas_ppm,
+            "power_mW": rec.power_mW,
+            "plausibility": rec.plausibility.value,
+            "fingerprint_status": rec.fingerprint_status.value,
+            "previous_hash": rec.previous_hash,
+            "hash": rec.hash,
+            "is_valid_hash": is_valid_hash,
+            "is_valid_chain": is_valid_chain
+        })
+
+    return HistoricalReadingsResponse(
+        device_id=device_id,
+        total_records=total_records,
+        readings=response_readings
     )

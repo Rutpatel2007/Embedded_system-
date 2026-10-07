@@ -74,3 +74,19 @@ class ReadingIngestResponse(BaseModel):
     status: str
     accepted_count: int
     last_synced_timestamp: int
+class HistoricalReadingItem(BaseModel):
+    device_id: str
+    timestamp: int
+    gas_ppm: Decimal
+    power_mW: Decimal
+    plausibility: str
+    fingerprint_status: str
+    previous_hash: str = Field(min_length=64, max_length=64)
+    hash: str = Field(min_length=64, max_length=64)
+    is_valid_hash: bool
+    is_valid_chain: bool
+
+class HistoricalReadingsResponse(BaseModel):
+    device_id: str
+    total_records: int
+    readings: list[HistoricalReadingItem]
