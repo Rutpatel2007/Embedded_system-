@@ -1,12 +1,21 @@
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import Base, engine, get_db
 from app.models import Device
 from app.schemas import DeviceRegisterRequest, DeviceRegisterResponse
 
-app = FastAPI(title="TrueSense Backend")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title="TrueSense Backend", lifespan=lifespan)
 
 
 @app.get("/health")
