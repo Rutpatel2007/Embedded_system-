@@ -57,14 +57,14 @@ def test_create_and_retrieve_device_and_reading(db):
         plausibility=PlausibilityEnum.NORMAL,
         fingerprint_status=FingerprintStatusEnum.SENSOR_OK,
         previous_hash="0000000000000000000000000000000000000000000000000000000000000000",
-        hash="3e7cb4f09d8aa0e71691168f187a5a3a2e379bc83f0631bfaeb24b2165215d2a"
+        hash="2e8e7995bb9576188874c028488bafb8a5973133134cbb123182b3c79051dcd3"
     )
     db.add(reading)
     db.commit()
     db.refresh(reading)
     
     # Verify Reading canonical fields
-    saved = db.query(Reading).filter_by(hash="3e7cb4f09d8aa0e71691168f187a5a3a2e379bc83f0631bfaeb24b2165215d2a").first()
+    saved = db.query(Reading).filter_by(hash="2e8e7995bb9576188874c028488bafb8a5973133134cbb123182b3c79051dcd3").first()
     assert saved is not None
     assert saved.device_id == "TS001"
     assert saved.timestamp == 1750000000

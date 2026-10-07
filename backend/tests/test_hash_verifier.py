@@ -146,3 +146,15 @@ def test_verify_hash_rejects_wrong_hash():
         previous_hash=GENESIS_HASH,
         expected_hash="0" * 64,
     )
+def test_authoritative_hash_vector():
+    expected_hash = "2e8e7995bb9576188874c028488bafb8a5973133134cbb123182b3c79051dcd3"
+    result = calculate_hash(
+        device_id="TS001",
+        timestamp=1750000000,
+        gas_ppm="42.381",
+        power_mW="823.420",
+        plausibility="NORMAL",
+        fingerprint_status="SENSOR_OK",
+        previous_hash=GENESIS_HASH,
+    )
+    assert result == expected_hash
