@@ -30,7 +30,22 @@ async def lifespan(app: FastAPI):
     yield
 
 
+import os
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="TrueSense Backend", lifespan=lifespan)
+
+# Optional CORS middleware for frontend development and preview
+cors_origins_env = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173")
+cors_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins if cors_origins != ["*"] else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/api/v1/health")
