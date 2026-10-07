@@ -96,3 +96,14 @@ class ChainVerificationResponse(BaseModel):
     total_records_checked: int
     tampered_records: int
     chain_breaks: int
+
+class AlertItem(BaseModel):
+    alert_id: int
+    device_id: str
+    timestamp: int
+    type: str
+    severity: str
+    message: str
+
+class AlertsResponse(BaseModel):
+    alerts: list[AlertItem]

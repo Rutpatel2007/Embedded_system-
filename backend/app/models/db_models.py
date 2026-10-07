@@ -30,3 +30,4 @@ class Reading(Base):
     fingerprint_status = Column(Enum(FingerprintStatusEnum), nullable=False)
     previous_hash = Column(String(64), nullable=False)
     hash = Column(String(64), nullable=False, unique=True)
+

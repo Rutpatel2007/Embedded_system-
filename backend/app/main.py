@@ -20,6 +20,7 @@ from app.schemas import (
     ReadingIngestResponse,
     HistoricalReadingsResponse,
     ChainVerificationResponse,
+    AlertsResponse,
 )
 
 
@@ -341,3 +342,101 @@ def verify_chain(device_id: str, db: Session = Depends(get_db)):
         tampered_records=tampered_records,
         chain_breaks=chain_breaks,
     )
+
+
+@app.get(
+    "/alerts",
+    response_model=AlertsResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_alerts(device_id: Optional[str] = None, db: Session = Depends(get_db)):
+    devices = []
+    if device_id:
+        device = db.query(Device).filter(Device.device_id == device_id).first()
+        if not device:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Device {device_id} is not registered",
+            )
+        devices.append(device_id)
+    else:
+        all_devices = db.query(Device).all()
+        devices = [d.device_id for d in all_devices]
+        
+    alerts = []
+    alert_counter = 1
+    
+    for dev_id in devices:
+        readings = (
+            db.query(Reading)
+            .filter(Reading.device_id == dev_id)
+            .order_by(Reading.id.asc())
+            .all()
+        )
+        expected_prev_hash = "0" * 64
+        
+        for rec in readings:
+            # Physical Plausibility Alert
+            if rec.plausibility == PlausibilityEnum.SUSPICIOUS:
+                alerts.append({
+                    "alert_id": alert_counter,
+                    "device_id": dev_id,
+                    "timestamp": rec.timestamp,
+                    "type": "PHYSICAL_PLAUSIBILITY_SUSPICIOUS",
+                    "severity": "HIGH",
+                    "message": f"Gas spike detected ({rec.gas_ppm} PPM) with no corresponding equipment power activity ({rec.power_mW} mW)."
+                })
+                alert_counter += 1
+                
+            # Fingerprint Mismatch Alert
+            if rec.fingerprint_status == FingerprintStatusEnum.SENSOR_IDENTITY_MISMATCH:
+                alerts.append({
+                    "alert_id": alert_counter,
+                    "device_id": dev_id,
+                    "timestamp": rec.timestamp,
+                    "type": "SENSOR_IDENTITY_MISMATCH",
+                    "severity": "CRITICAL",
+                    "message": "Warm-up curve similarity fell below threshold. Possible unauthorized sensor replacement."
+                })
+                alert_counter += 1
+                
+            # Data Tampering (Hash mismatch)
+            is_valid = verify_hash(
+                device_id=rec.device_id,
+                timestamp=rec.timestamp,
+                gas_ppm=rec.gas_ppm,
+                power_mW=rec.power_mW,
+                plausibility=rec.plausibility.value,
+                fingerprint_status=rec.fingerprint_status.value,
+                previous_hash=rec.previous_hash,
+                expected_hash=rec.hash,
+            )
+            if not is_valid:
+                alerts.append({
+                    "alert_id": alert_counter,
+                    "device_id": dev_id,
+                    "timestamp": rec.timestamp,
+                    "type": "DATA_TAMPERING",
+                    "severity": "CRITICAL",
+                    "message": "Data tampering detected: invalid record hash."
+                })
+                alert_counter += 1
+                
+            # Data Tampering (Chain break)
+            if rec.previous_hash != expected_prev_hash:
+                alerts.append({
+                    "alert_id": alert_counter,
+                    "device_id": dev_id,
+                    "timestamp": rec.timestamp,
+                    "type": "DATA_TAMPERING",
+                    "severity": "CRITICAL",
+                    "message": "Data tampering detected: hash chain break."
+                })
+                alert_counter += 1
+                
+            expected_prev_hash = rec.hash
+            
+    # Deterministic newest-first ordering
+    alerts.sort(key=lambda x: (-x["timestamp"], -x["alert_id"]))
+    
+    return AlertsResponse(alerts=alerts)
