@@ -15,7 +15,7 @@ def valid_payload():
 
 
 def test_register_device():
-    response = client.post("/devices/register", json=valid_payload())
+    response = client.post("/api/v1/devices/register", json=valid_payload())
 
     assert response.status_code == 201
 
@@ -30,7 +30,7 @@ def test_invalid_device_id():
     payload = valid_payload()
     payload["device_id"] = "INVALID"
 
-    response = client.post("/devices/register", json=payload)
+    response = client.post("/api/v1/devices/register", json=payload)
 
     assert response.status_code == 422
 
@@ -39,7 +39,7 @@ def test_short_fingerprint():
     payload = valid_payload()
     payload["enrolled_fingerprint"] = [1.0] * 19
 
-    response = client.post("/devices/register", json=payload)
+    response = client.post("/api/v1/devices/register", json=payload)
 
     assert response.status_code == 422
 
@@ -48,7 +48,7 @@ def test_long_fingerprint():
     payload = valid_payload()
     payload["enrolled_fingerprint"] = [1.0] * 21
 
-    response = client.post("/devices/register", json=payload)
+    response = client.post("/api/v1/devices/register", json=payload)
 
     assert response.status_code == 422
 
@@ -57,7 +57,7 @@ def test_empty_name():
     payload = valid_payload()
     payload["name"] = ""
 
-    response = client.post("/devices/register", json=payload)
+    response = client.post("/api/v1/devices/register", json=payload)
 
     assert response.status_code == 422
 
@@ -65,8 +65,8 @@ def test_empty_name():
 def test_duplicate_device_id():
     payload = valid_payload()
 
-    first_response = client.post("/devices/register", json=payload)
-    second_response = client.post("/devices/register", json=payload)
+    first_response = client.post("/api/v1/devices/register", json=payload)
+    second_response = client.post("/api/v1/devices/register", json=payload)
 
     assert first_response.status_code == 201
     assert second_response.status_code == 409
@@ -76,6 +76,6 @@ def test_duplicate_device_id():
 def test_device_persisted_in_database():
     payload = valid_payload()
 
-    response = client.post("/devices/register", json=payload)
+    response = client.post("/api/v1/devices/register", json=payload)
 
     assert response.status_code == 201

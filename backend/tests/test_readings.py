@@ -13,7 +13,7 @@ GENESIS_HASH = "0" * 64
 
 def register_test_device():
     response = client.post(
-        "/devices/register",
+        "/api/v1/devices/register",
         json={
             "device_id": "TS001",
             "name": "Test Device",
@@ -56,7 +56,7 @@ def test_ingest_valid_reading():
     reading = build_reading()
 
     response = client.post(
-        "/readings/ingest",
+        "/api/v1/readings/ingest",
         json={
             "device_id": "TS001",
             "readings": [reading],
@@ -75,7 +75,7 @@ def test_ingest_rejects_unknown_device():
     reading = build_reading()
 
     response = client.post(
-        "/readings/ingest",
+        "/api/v1/readings/ingest",
         json={
             "device_id": "TS001",
             "readings": [reading],
@@ -92,7 +92,7 @@ def test_ingest_rejects_invalid_hash():
     reading["hash"] = "0" * 64
 
     response = client.post(
-        "/readings/ingest",
+        "/api/v1/readings/ingest",
         json={
             "device_id": "TS001",
             "readings": [reading],
@@ -109,7 +109,7 @@ def test_ingest_rejects_chain_break():
     first_reading = build_reading()
 
     first_response = client.post(
-        "/readings/ingest",
+        "/api/v1/readings/ingest",
         json={
             "device_id": "TS001",
             "readings": [first_reading],
@@ -124,7 +124,7 @@ def test_ingest_rejects_chain_break():
     )
 
     response = client.post(
-        "/readings/ingest",
+        "/api/v1/readings/ingest",
         json={
             "device_id": "TS001",
             "readings": [broken_reading],
@@ -142,7 +142,7 @@ def test_ingest_rejects_record_device_id_mismatch():
     reading["device_id"] = "TS002"
 
     response = client.post(
-        "/readings/ingest",
+        "/api/v1/readings/ingest",
         json={
             "device_id": "TS001",
             "readings": [reading],
@@ -158,7 +158,7 @@ def test_ingest_rejects_duplicate_hash():
     reading = build_reading()
 
     first_response = client.post(
-        "/readings/ingest",
+        "/api/v1/readings/ingest",
         json={
             "device_id": "TS001",
             "readings": [reading],
@@ -168,7 +168,7 @@ def test_ingest_rejects_duplicate_hash():
     assert first_response.status_code == 200
 
     second_response = client.post(
-        "/readings/ingest",
+        "/api/v1/readings/ingest",
         json={
             "device_id": "TS001",
             "readings": [reading],

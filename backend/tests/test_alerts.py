@@ -10,7 +10,7 @@ client = TestClient(app)
 GENESIS_HASH = "0" * 64
 
 def register_device(device_id="TS001"):
-    client.post("/devices/register", json={
+    client.post("/api/v1/devices/register", json={
         "device_id": device_id,
         "name": "Test Node",
         "enrolled_fingerprint": [1.0] * 20
@@ -43,20 +43,20 @@ def ingest_chain(device_id="TS001", count=3, start_time=1000, plaus="NORMAL", fi
             "hash": h
         })
         prev_hash = h
-    res = client.post("/readings/ingest", json={"device_id": device_id, "readings": readings})
+    res = client.post("/api/v1/readings/ingest", json={"device_id": device_id, "readings": readings})
     assert res.status_code == 200, res.text
 
 def test_no_alerts_empty_response():
     register_device()
     ingest_chain()
-    res = client.get("/alerts?device_id=TS001")
+    res = client.get("/api/v1/alerts?device_id=TS001")
     assert res.status_code == 200
     assert res.json() == {"alerts": []}
 
 def test_alerts_can_be_retrieved():
     register_device()
     ingest_chain(plaus="SUSPICIOUS")
-    res = client.get("/alerts?device_id=TS001")
+    res = client.get("/api/v1/alerts?device_id=TS001")
     assert res.status_code == 200
     alerts = res.json()["alerts"]
     assert len(alerts) == 3
@@ -65,7 +65,7 @@ def test_alerts_can_be_retrieved():
 def test_multiple_alerts_returned():
     register_device()
     ingest_chain(plaus="SUSPICIOUS", fingerprint="SENSOR_IDENTITY_MISMATCH")
-    res = client.get("/alerts?device_id=TS001")
+    res = client.get("/api/v1/alerts?device_id=TS001")
     alerts = res.json()["alerts"]
     assert len(alerts) == 6 # 3 suspicious, 3 fingerprint
     # Check fields match API contract
@@ -84,29 +84,29 @@ def test_device_id_filter_works_and_excludes_others():
     ingest_chain("TS001", plaus="SUSPICIOUS")
     ingest_chain("TS002", fingerprint="SENSOR_IDENTITY_MISMATCH")
     
-    res1 = client.get("/alerts?device_id=TS001")
+    res1 = client.get("/api/v1/alerts?device_id=TS001")
     alerts1 = res1.json()["alerts"]
     assert len(alerts1) == 3
     assert all(a["device_id"] == "TS001" for a in alerts1)
     
-    res2 = client.get("/alerts?device_id=TS002")
+    res2 = client.get("/api/v1/alerts?device_id=TS002")
     alerts2 = res2.json()["alerts"]
     assert len(alerts2) == 3
     assert all(a["device_id"] == "TS002" for a in alerts2)
     
-    res_all = client.get("/alerts")
+    res_all = client.get("/api/v1/alerts")
     alerts_all = res_all.json()["alerts"]
     assert len(alerts_all) == 6
 
 def test_unknown_device_behavior():
-    res = client.get("/alerts?device_id=TS999")
+    res = client.get("/api/v1/alerts?device_id=TS999")
     assert res.status_code == 404
     assert res.json()["detail"] == "Device TS999 is not registered"
 
 def test_alert_ordering_deterministic():
     register_device()
     ingest_chain(count=3, plaus="SUSPICIOUS")
-    res = client.get("/alerts?device_id=TS001")
+    res = client.get("/api/v1/alerts?device_id=TS001")
     alerts = res.json()["alerts"]
     assert len(alerts) == 3
     # Check newest first
@@ -116,6 +116,6 @@ def test_alert_ordering_deterministic():
 def test_does_not_modify_database_state():
     register_device()
     ingest_chain(count=1, plaus="SUSPICIOUS")
-    res1 = client.get("/alerts?device_id=TS001")
-    res2 = client.get("/alerts?device_id=TS001")
+    res1 = client.get("/api/v1/alerts?device_id=TS001")
+    res2 = client.get("/api/v1/alerts?device_id=TS001")
     assert res1.json() == res2.json()

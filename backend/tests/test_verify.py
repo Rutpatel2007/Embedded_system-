@@ -10,7 +10,7 @@ client = TestClient(app)
 GENESIS_HASH = "0" * 64
 
 def register_device(device_id="TS001"):
-    client.post("/devices/register", json={
+    client.post("/api/v1/devices/register", json={
         "device_id": device_id,
         "name": "Test Node",
         "enrolled_fingerprint": [1.0] * 20
@@ -43,17 +43,17 @@ def ingest_chain(device_id="TS001", count=5, start_time=1000, same_timestamp=Fal
             "hash": h
         })
         prev_hash = h
-    res = client.post("/readings/ingest", json={"device_id": device_id, "readings": readings})
+    res = client.post("/api/v1/readings/ingest", json={"device_id": device_id, "readings": readings})
     assert res.status_code == 200, res.text
     return readings
 
 def test_unknown_device():
-    res = client.get("/verify/TS999")
+    res = client.get("/api/v1/verify/TS999")
     assert res.status_code == 404
 
 def test_empty_device_behavior():
     register_device()
-    res = client.get("/verify/TS001")
+    res = client.get("/api/v1/verify/TS001")
     assert res.status_code == 200
     data = res.json()
     assert data["chain_valid"] is True
@@ -64,7 +64,7 @@ def test_empty_device_behavior():
 def test_valid_single_record_genesis_chain():
     register_device()
     ingest_chain(count=1)
-    res = client.get("/verify/TS001")
+    res = client.get("/api/v1/verify/TS001")
     data = res.json()
     assert data["chain_valid"] is True
     assert data["total_records_checked"] == 1
@@ -74,7 +74,7 @@ def test_valid_single_record_genesis_chain():
 def test_valid_multi_record_chain():
     register_device()
     ingest_chain(count=5)
-    res = client.get("/verify/TS001")
+    res = client.get("/api/v1/verify/TS001")
     data = res.json()
     assert data["chain_valid"] is True
     assert data["total_records_checked"] == 5
@@ -82,7 +82,7 @@ def test_valid_multi_record_chain():
 def test_same_timestamp_multi_record_chain():
     register_device()
     ingest_chain(count=5, same_timestamp=True)
-    res = client.get("/verify/TS001")
+    res = client.get("/api/v1/verify/TS001")
     data = res.json()
     assert data["chain_valid"] is True
     assert data["total_records_checked"] == 5
@@ -95,7 +95,7 @@ def test_tampered_stored_hash_detected():
     r.hash = "f" * 64
     db.commit()
     
-    res = client.get("/verify/TS001")
+    res = client.get("/api/v1/verify/TS001")
     data = res.json()
     assert data["chain_valid"] is False
     assert data["tampered_records"] == 1
@@ -109,7 +109,7 @@ def test_tampered_gas_value_detected():
     r.gas_ppm = Decimal("999.000")
     db.commit()
     
-    res = client.get("/verify/TS001")
+    res = client.get("/api/v1/verify/TS001")
     data = res.json()
     assert data["chain_valid"] is False
     assert data["tampered_records"] == 1
@@ -123,7 +123,7 @@ def test_tampered_power_value_detected():
     r.power_mW = Decimal("999.000")
     db.commit()
     
-    res = client.get("/verify/TS001")
+    res = client.get("/api/v1/verify/TS001")
     data = res.json()
     assert data["chain_valid"] is False
     assert data["tampered_records"] == 1
@@ -136,7 +136,7 @@ def test_broken_previous_hash_linkage_detected():
     r.previous_hash = "a" * 64
     db.commit()
     
-    res = client.get("/verify/TS001")
+    res = client.get("/api/v1/verify/TS001")
     data = res.json()
     assert data["chain_valid"] is False
     assert data["tampered_records"] == 1 # the hash of the record itself is now invalid because its contents (previous_hash) changed
@@ -150,7 +150,7 @@ def test_first_record_non_genesis():
     r.previous_hash = "1" * 64
     db.commit()
     
-    res = client.get("/verify/TS001")
+    res = client.get("/api/v1/verify/TS001")
     data = res.json()
     assert data["chain_valid"] is False
     assert data["tampered_records"] == 1
@@ -170,7 +170,7 @@ def test_multiple_simultaneous_tampering():
     r4.previous_hash = "2" * 64
     db.commit()
     
-    res = client.get("/verify/TS001")
+    res = client.get("/api/v1/verify/TS001")
     data = res.json()
     assert data["chain_valid"] is False
     assert data["total_records_checked"] == 5
@@ -181,7 +181,7 @@ def test_endpoint_is_read_only():
     register_device()
     ingest_chain(count=3)
     
-    res1 = client.get("/verify/TS001")
-    res2 = client.get("/verify/TS001")
+    res1 = client.get("/api/v1/verify/TS001")
+    res2 = client.get("/api/v1/verify/TS001")
     
     assert res1.json() == res2.json()

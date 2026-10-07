@@ -33,13 +33,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="TrueSense Backend", lifespan=lifespan)
 
 
-@app.get("/health")
+@app.get("/api/v1/health")
 def health_check():
     return {"status": "healthy"}
 
 
 @app.post(
-    "/devices/register",
+    "/api/v1/devices/register",
     response_model=DeviceRegisterResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -81,7 +81,7 @@ def register_device(
 
 
 @app.post(
-    "/readings/ingest",
+    "/api/v1/readings/ingest",
     response_model=ReadingIngestResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -195,7 +195,7 @@ def ingest_readings(
     )
 
 @app.get(
-    "/readings/{device_id}",
+    "/api/v1/readings/{device_id}",
     response_model=HistoricalReadingsResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -285,7 +285,7 @@ def get_readings(
 
 
 @app.get(
-    "/verify/{device_id}",
+    "/api/v1/verify/{device_id}",
     response_model=ChainVerificationResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -345,7 +345,7 @@ def verify_chain(device_id: str, db: Session = Depends(get_db)):
 
 
 @app.get(
-    "/alerts",
+    "/api/v1/alerts",
     response_model=AlertsResponse,
     status_code=status.HTTP_200_OK,
 )
