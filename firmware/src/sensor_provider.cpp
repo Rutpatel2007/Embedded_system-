@@ -1,4 +1,6 @@
 #include "sensor_provider.h"
+#include <stdio.h>
+#include <string.h>
 
 // ----------------------------------------------------
 // HardwareSensorProvider Implementation
@@ -52,7 +54,6 @@ void MockSensorProvider::setScenario(MockScenario scenario) {
 
 bool MockSensorProvider::readSample(SensorSample& sample) {
     _stepCount++;
-    _mockTimeEpoch += 0; // Epoch in seconds increments every 2 samples (500ms * 2 = 1s)
     if (_stepCount % 2 == 0) {
         _mockTimeEpoch += 1;
     }
@@ -78,10 +79,6 @@ bool MockSensorProvider::readSample(SensorSample& sample) {
             break;
 
         case SCENARIO_PLAUSIBLE:
-            // Timeline:
-            // Steps 0-20: Equipment OFF, Baseline Gas
-            // Steps 21-80: Equipment ON (Power 850 mW)
-            // Steps 35-80: Gas rises after 7-second physical diffusion delay (Plausible emission)
             if (_stepCount > 20 && _stepCount <= 80) {
                 sample.power_mW = 850.0f + noise * 100.0f;
                 sample.equipmentActive = true;
@@ -91,7 +88,6 @@ bool MockSensorProvider::readSample(SensorSample& sample) {
             }
 
             if (_stepCount > 35 && _stepCount <= 80) {
-                // Gas rises up to 3.2V
                 float fillRatio = (float)(_stepCount - 35) / 15.0f;
                 if (fillRatio > 1.0f) fillRatio = 1.0f;
                 sample.gasVoltage = 1.0f + fillRatio * 2.2f + noise;
@@ -108,7 +104,6 @@ bool MockSensorProvider::readSample(SensorSample& sample) {
             break;
 
         case SCENARIO_SUSPICIOUS:
-            // Equipment remains OFF (0 mW), but gas suddenly spikes to 3.6V (Physical Inconsistency)
             sample.power_mW = 0.0f;
             sample.equipmentActive = false;
             sample.busVoltage = 4.95f;
@@ -116,7 +111,7 @@ bool MockSensorProvider::readSample(SensorSample& sample) {
             sample.powerValid = true;
 
             if (_stepCount > 15) {
-                sample.gasVoltage = 3.60f + noise; // Gas spike without power activity
+                sample.gasVoltage = 3.60f + noise;
             } else {
                 sample.gasVoltage = 1.0f + noise;
             }
@@ -127,7 +122,6 @@ bool MockSensorProvider::readSample(SensorSample& sample) {
             break;
 
         case SCENARIO_FAULT:
-            // Simulates hardware failure/disconnection
             sample.gasRaw = 0xFFFF;
             sample.gasVoltage = 0.0f;
             sample.sensorVoltage = 0.0f;
@@ -143,7 +137,6 @@ bool MockSensorProvider::readSample(SensorSample& sample) {
         case SCENARIO_MATCHING_SENSOR:
         case SCENARIO_WARM_REBOOT:
         case SCENARIO_COLD_BOOT:
-            // Enrolled baseline matching gasVoltage (~1.0V)
             sample.gasRaw = 1241;
             sample.gasVoltage = 1.0f + noise;
             sample.sensorVoltage = sample.gasVoltage * 1.5f;
@@ -158,7 +151,6 @@ bool MockSensorProvider::readSample(SensorSample& sample) {
 
         case SCENARIO_REPLACED_SENSOR:
         case SCENARIO_UNENROLLED_NODE:
-            // Shifted baseline gasVoltage (~2.2V -> 3.3V sensorVoltage vs 1.5V ref)
             sample.gasRaw = 2730;
             sample.gasVoltage = 2.2f + noise;
             sample.sensorVoltage = sample.gasVoltage * 1.5f;
@@ -172,7 +164,6 @@ bool MockSensorProvider::readSample(SensorSample& sample) {
             break;
 
         case SCENARIO_INSUFFICIENT_HISTORY:
-            // Invalid gas readings to simulate missing/empty buffer state
             sample.gasRaw = 0;
             sample.gasVoltage = 0.0f;
             sample.sensorVoltage = 0.0f;
@@ -187,4 +178,112 @@ bool MockSensorProvider::readSample(SensorSample& sample) {
     }
 
     return sample.gasValid && sample.powerValid && sample.timestampValid;
+}
+
+// ----------------------------------------------------
+// ReplaySensorProvider Implementation
+// ----------------------------------------------------
+ReplaySensorProvider::ReplaySensorProvider(const char* csvPath)
+    : _sampleCount(0), _currentIndex(0) {
+    strncpy(_csvPath, csvPath != nullptr ? csvPath : "tests/data/truesense_simulation_dataset.csv", sizeof(_csvPath) - 1);
+    _csvPath[sizeof(_csvPath) - 1] = '\0';
+}
+
+bool ReplaySensorProvider::begin() {
+    _currentIndex = 0;
+    if (_sampleCount == 0) {
+        return loadCSV(_csvPath);
+    }
+    return true;
+}
+
+void ReplaySensorProvider::reset() {
+    _currentIndex = 0;
+}
+
+bool ReplaySensorProvider::loadCSV(const char* csvPath) {
+    if (csvPath != nullptr) {
+        strncpy(_csvPath, csvPath, sizeof(_csvPath) - 1);
+        _csvPath[sizeof(_csvPath) - 1] = '\0';
+    }
+
+    FILE* f = fopen(_csvPath, "r");
+    if (!f) {
+        f = fopen("tests/data/truesense_simulation_dataset.csv", "r");
+        if (!f) {
+            f = fopen("../tests/data/truesense_simulation_dataset.csv", "r");
+        }
+    }
+
+    if (!f) {
+        Serial.printf("[REPLAY ERROR] Could not open dataset CSV: %s\n", _csvPath);
+        return false;
+    }
+
+    char line[256];
+    // Skip header line
+    if (!fgets(line, sizeof(line), f)) {
+        fclose(f);
+        return false;
+    }
+
+    _sampleCount = 0;
+    while (fgets(line, sizeof(line), f) && _sampleCount < MAX_REPLAY_SAMPLES) {
+        ReplayRow& row = _samples[_sampleCount];
+        memset(&row, 0, sizeof(ReplayRow));
+
+        int parsed = sscanf(
+            line,
+            "%u,%llu,%u,%31[^,],%hhu,%hu,%f,%f,%f,%f,%f,%15[^,],%31[^\r\n]",
+            &row.sample_id,
+            (unsigned long long*)&row.timestamp_unix,
+            &row.timestamp_ms,
+            row.scenario,
+            &row.relay_state,
+            &row.adc_raw,
+            &row.adc_voltage_V,
+            &row.gas_voltage_V,
+            &row.bus_voltage_V,
+            &row.current_mA,
+            &row.power_mW,
+            row.expected_plausibility,
+            row.expected_fingerprint_status
+        );
+
+        if (parsed >= 13) {
+            _sampleCount++;
+        }
+    }
+
+    fclose(f);
+    _currentIndex = 0;
+    Serial.printf("[REPLAY INIT] Loaded %u samples from CSV dataset: %s\n", (unsigned int)_sampleCount, _csvPath);
+    return (_sampleCount > 0);
+}
+
+bool ReplaySensorProvider::readSample(SensorSample& sample) {
+    if (_sampleCount == 0 || _currentIndex >= _sampleCount) {
+        return false;
+    }
+
+    const ReplayRow& row = _samples[_currentIndex++];
+
+    memset(&sample, 0, sizeof(SensorSample));
+    sample.timestamp = row.timestamp_unix;
+    sample.millisMs = row.timestamp_ms;
+    sample.timestampValid = true;
+
+    sample.gasRaw = row.adc_raw;
+    sample.gasVoltage = row.gas_voltage_V;
+    sample.sensorVoltage = row.gas_voltage_V * 1.5f;
+    sample.gasValid = true;
+
+    sample.busVoltage = row.bus_voltage_V;
+    sample.current_mA = row.current_mA;
+    sample.power_mW = row.power_mW;
+    sample.powerValid = true;
+
+    sample.equipmentActive = (row.relay_state != 0) || (sample.power_mW >= POWER_ACTIVE_THRESHOLD_MW);
+
+    return true;
 }

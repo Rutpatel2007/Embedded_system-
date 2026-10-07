@@ -9,7 +9,7 @@
 #include "rtc.h"
 #include "relay.h"
 
-// Abstract Interface for Sensor Acquisition (Hardware vs Simulation)
+// Abstract Interface for Sensor Acquisition (Hardware vs Simulation vs Replay)
 class ISensorProvider {
 public:
     virtual ~ISensorProvider() {}
@@ -48,6 +48,44 @@ private:
     MockScenario _scenario;
     uint32_t _stepCount;
     uint64_t _mockTimeEpoch;
+};
+
+// Replay Sensor Provider (Feeds truesense_simulation_dataset.csv row-by-row into pipeline)
+class ReplaySensorProvider : public ISensorProvider {
+public:
+    struct ReplayRow {
+        uint32_t sample_id;
+        uint64_t timestamp_unix;
+        uint32_t timestamp_ms;
+        char scenario[32];
+        uint8_t relay_state;
+        uint16_t adc_raw;
+        float adc_voltage_V;
+        float gas_voltage_V;
+        float bus_voltage_V;
+        float current_mA;
+        float power_mW;
+        char expected_plausibility[16];
+        char expected_fingerprint_status[32];
+    };
+
+    ReplaySensorProvider(const char* csvPath = "tests/data/truesense_simulation_dataset.csv");
+    bool begin() override;
+    bool readSample(SensorSample& sample) override;
+    const char* getProviderName() const override { return "REPLAY_PROVIDER"; }
+
+    bool loadCSV(const char* csvPath);
+    void reset();
+    size_t getSampleCount() const { return _sampleCount; }
+    size_t getCurrentIndex() const { return _currentIndex; }
+    const ReplayRow* getSampleAt(size_t index) const { return (index < _sampleCount) ? &_samples[index] : nullptr; }
+
+private:
+    static const size_t MAX_REPLAY_SAMPLES = 600;
+    ReplayRow _samples[MAX_REPLAY_SAMPLES];
+    size_t _sampleCount;
+    size_t _currentIndex;
+    char _csvPath[128];
 };
 
 #endif // SENSOR_PROVIDER_H
