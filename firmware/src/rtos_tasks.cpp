@@ -1,4 +1,5 @@
 #include "rtos_tasks.h"
+#include "network_sync.h"
 
 // FreeRTOS Inter-Task Communication Queue
 static QueueHandle_t g_sampleQueue = NULL;
@@ -109,6 +110,10 @@ bool initRTOSTasks(ISensorProvider* provider) {
         NULL,
         0
     );
+
+    // Initialize Network Sync Task
+    initNetworkSyncTask();
+
 
     Serial.printf("[RTOS INIT] FreeRTOS queues and tasks initialized. Queue capacity: %d samples.\n", SENSOR_QUEUE_LEN);
     return true;
