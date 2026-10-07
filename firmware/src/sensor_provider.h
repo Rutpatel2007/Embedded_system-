@@ -47,7 +47,7 @@ public:
 private:
     MockScenario _scenario;
     uint32_t _stepCount;
-    uint32_t _mockTimeEpoch;
+    uint64_t _mockTimeEpoch;
 };
 
 #endif // SENSOR_PROVIDER_H

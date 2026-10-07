@@ -77,7 +77,11 @@ def register_device(
             detail="Device already registered",
         )
 
-    return device
+    return DeviceRegisterResponse(
+        status="success",
+        device_id=device.device_id,
+        message="Device registered successfully"
+    )
 
 
 @app.post(

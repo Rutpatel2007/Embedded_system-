@@ -22,8 +22,9 @@ def test_register_device():
     data = response.json()
 
     assert data["device_id"] == "TS001"
-    assert data["name"] == "Factory Exhaust Node 1"
-    assert data["enrolled_fingerprint"] == [1.0] * 20
+    
+    assert data["status"] == "success"
+    assert data["message"] == "Device registered successfully"
 
 
 def test_invalid_device_id():

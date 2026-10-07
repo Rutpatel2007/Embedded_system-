@@ -19,9 +19,9 @@ class DeviceRegisterRequest(BaseModel):
 
 
 class DeviceRegisterResponse(BaseModel):
+    status: str
     device_id: str
-    name: str
-    enrolled_fingerprint: list[float]
+    message: str
 
 
 class ReadingIngestItem(BaseModel):

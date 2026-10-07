@@ -5,7 +5,7 @@
 
 // Canonical internal acquisition structure for a single 500ms sensor snapshot
 struct SensorSample {
-    uint32_t timestamp;        // DS3231 Unix epoch timestamp in seconds
+    uint64_t timestamp;        // DS3231 Unix epoch timestamp in seconds
     uint32_t millisMs;         // Monotonic millisecond counter for sub-second jitter diagnostic
 
     uint16_t gasRaw;           // Raw 12-bit ADC value (0 - 4095)
@@ -25,7 +25,7 @@ struct SensorSample {
 
 // Power activity entry stored in the 90-second trailing history ring buffer
 struct PowerSample {
-    uint32_t timestamp;        // Unix epoch in seconds
+    uint64_t timestamp;        // Unix epoch in seconds
     uint32_t millisMs;         // Monotonic millisecond counter for exact trailing window math
     float power_mW;
     bool equipmentActive;

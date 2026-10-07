@@ -194,8 +194,8 @@ void algorithmTask(void* pvParameters) {
 
             // 5. Print machine-readable development CSV telemetry row over Serial
             // Format: millisMs,timestamp,gasRaw,gasVoltage,sensorVoltage,power_mW,equipmentActive,gasValid,powerValid
-            Serial.printf("[TELEMETRY] %u,%u,%u,%.3f,%.3f,%.3f,%d,%d,%d\n",
-                          sample.millisMs, sample.timestamp, sample.gasRaw, sample.gasVoltage, sample.sensorVoltage,
+            Serial.printf("[TELEMETRY] %u,%llu,%u,%.3f,%.3f,%.3f,%d,%d,%d\n",
+                          sample.millisMs, (unsigned long long)sample.timestamp, sample.gasRaw, sample.gasVoltage, sample.sensorVoltage,
                           sample.power_mW, sample.equipmentActive ? 1 : 0,
                           sample.gasValid ? 1 : 0, sample.powerValid ? 1 : 0);
 

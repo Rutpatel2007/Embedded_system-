@@ -14,13 +14,13 @@ bool RTCDriver::isRunning() {
     return !_rtc.lostPower();
 }
 
-uint32_t RTCDriver::getUnixTimestamp() {
+uint64_t RTCDriver::getUnixTimestamp() {
     if (!_initialized) return 0;
     DateTime now = _rtc.now();
     return now.unixtime();
 }
 
-bool RTCDriver::setUnixTimestamp(uint32_t epoch) {
+bool RTCDriver::setUnixTimestamp(uint64_t epoch) {
     if (!_initialized) return false;
     _rtc.adjust(DateTime(epoch));
     return true;

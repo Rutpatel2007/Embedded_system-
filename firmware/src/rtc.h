@@ -15,10 +15,10 @@ public:
     bool isRunning();
 
     // Fetch current time as 32-bit Unix epoch timestamp (seconds since 1970)
-    uint32_t getUnixTimestamp();
+    uint64_t getUnixTimestamp();
 
     // Set RTC time using a 32-bit Unix epoch timestamp
-    bool setUnixTimestamp(uint32_t epoch);
+    bool setUnixTimestamp(uint64_t epoch);
 
     // Format and print date-time string over Serial (YYYY-MM-DD HH:MM:SS UTC)
     String getFormattedDateTime();
