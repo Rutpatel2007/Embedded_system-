@@ -81,33 +81,6 @@ export interface AlertsResponse {
   alerts: AlertItem[];
 }
 
-export interface MLStatusResponse {
-  model_version: string;
-  model_name: string;
-  accuracy: number;
-  suitability: string;
-  trained_on: string;
-  status: 'operational' | 'training' | 'degraded' | 'unavailable';
-}
-
-export interface MLPredictRequest {
-  gas_ppm: number;
-  power_mW: number;
-  warmup_similarity?: number;
-}
-
-export interface MLPredictResponse {
-  ml_verdict: 'NORMAL' | 'SUSPICIOUS' | 'ANOMALOUS';
-  ml_confidence: number;
-  deterministic_verdict: 'NORMAL' | 'PLAUSIBLE' | 'SUSPICIOUS';
-  disagreement: boolean;
-  reason: string;
-  features_analyzed: {
-    gas_power_ratio: number;
-    sensor_drift_score: number;
-  };
-}
-
 export interface ApiError {
   status: number;
   detail: string;

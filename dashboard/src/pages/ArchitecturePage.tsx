@@ -42,8 +42,9 @@ export function ArchitecturePage() {
               <span className="text-[10px] text-teal font-bold uppercase block mb-1">03. Dual Layer Check</span>
               <div className="font-semibold text-ink">Layer 1 & Layer 2</div>
               <p className="text-[11px] text-muted mt-1 leading-snug">
-                Layer 1 cross-modal check + Layer 2 warm-up curve cosine similarity match against NVS profile.
+                Layer 1 cross-modal check + Layer 2 baseline voltage, noise and equipment-response slope comparison.
               </p>
+              <p className="text-[11px] text-muted mt-1 leading-snug">Warm-up curve capture is planned, not yet evaluated.</p>
             </div>
 
             <div className="p-3 border border-hairline bg-surface">

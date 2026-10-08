@@ -196,7 +196,7 @@ export function IntegrityPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-muted">
                 <div>Device ID: <span className="text-ink font-semibold">{item.device_id}</span></div>
                 <div>Epoch Timestamp: <span className="text-ink font-semibold">{item.timestamp}</span></div>
-                <div>Gas Signal (V uncalibrated): <span className="text-ink font-semibold">{item.gas_ppm.toFixed(3)}</span></div>
+                <div>Gas signal (V, uncalibrated proxy): <span className="text-ink font-semibold">{item.gas_ppm.toFixed(3)}</span></div>
                 <div>Power Draw: <span className="text-ink font-semibold">{item.power_mW.toFixed(3)} mW</span></div>
                 <div>Plausibility Status: <span className="text-ink font-semibold">{item.plausibility}</span></div>
                 <div>Fingerprint Match: <span className="text-ink font-semibold">{item.fingerprint_status}</span></div>

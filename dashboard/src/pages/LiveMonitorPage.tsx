@@ -189,7 +189,7 @@ export function LiveMonitorPage() {
         <Card>
           <CardHeader
             title="GAS SIGNAL (V, UNCALIBRATED PROXY)"
-            description="Voltage output from MQ-135 load resistor. Note: Uncalibrated hardware proxy, not PPM."
+            description="Gas signal (V, uncalibrated proxy) from MQ-135 load resistor."
           />
           <CardContent>
             <div className="h-64 w-full">

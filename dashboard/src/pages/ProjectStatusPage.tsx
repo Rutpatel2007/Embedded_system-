@@ -50,7 +50,7 @@ const CAPABILITIES: CapabilityItem[] = [
     component: 'Layer 2 Sensor Identity Fingerprint',
     subsystem: 'Silicon Integrity',
     status: 'SOFTWARE_TESTED',
-    details: 'Cosine similarity of 20-point warm-up profile matching against NVS reference.',
+    details: 'Compares baseline voltage, noise and equipment-response slope against an enrolled profile.',
   },
   {
     component: 'Cryptographic SHA-256 Ledger & Genesis Rule',
@@ -65,10 +65,10 @@ const CAPABILITIES: CapabilityItem[] = [
     details: 'Full contract endpoints verified with 63 passing pytest test cases.',
   },
   {
-    component: 'MQ-135 Load Resistor RL & PPM Calibration',
+    component: 'MQ-135 Load Resistor RL & Gas Signal Calibration',
     subsystem: 'Analog Hardware',
     status: 'UNVALIDATED',
-    details: 'Sensor resistance ratio and PPM conversion curves pending physical lab gas chamber calibration.',
+    details: 'Sensor resistance ratio and gas concentration conversion pending physical lab calibration.',
   },
   {
     component: 'Spike & Plausibility Power Thresholds (50mW)',

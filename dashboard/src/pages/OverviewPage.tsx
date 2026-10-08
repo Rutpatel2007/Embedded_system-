@@ -180,7 +180,7 @@ export function OverviewPage() {
 
               <div className="mt-4 pt-3 border-t border-hairline/60 text-xs font-mono-num space-y-1">
                 <div className="flex justify-between text-muted">
-                  <span>Gas Signal (V):</span>
+                  <span>Gas signal (V, uncalibrated proxy):</span>
                   <span className="text-ink font-semibold">
                     {latest ? `${latest.gas_ppm.toFixed(3)} V` : '—'}
                   </span>
@@ -211,7 +211,7 @@ export function OverviewPage() {
                 </div>
                 <h4 className="text-sm font-semibold text-ink">Sensor Identity Fingerprint</h4>
                 <p className="text-xs text-muted mt-1 leading-relaxed">
-                  Statistical hardware profile matching (thermal warm-up curve cosine similarity &gt; 0.85 in NVS) against enrolled sensor.
+                  Sensor identity matching from baseline voltage, noise and equipment-response slope.
                 </p>
               </div>
 
@@ -224,8 +224,9 @@ export function OverviewPage() {
                 </div>
                 <div className="flex justify-between text-muted">
                   <span>NVS Profile:</span>
-                  <span className="text-ink font-semibold">20-Point Curve</span>
+                  <span className="text-ink font-semibold">Baseline, noise, response slope</span>
                 </div>
+                <p className="text-muted">Warm-up curve capture is planned, not yet evaluated.</p>
               </div>
             </div>
 
@@ -293,7 +294,7 @@ export function OverviewPage() {
                   <span className="text-ink font-semibold">Timestamp:</span> {latest.timestamp} ({new Date(latest.timestamp * 1000).toISOString()})
                 </div>
                 <div>
-                  <span className="text-ink font-semibold">Gas Signal (Proxy V):</span> {latest.gas_ppm.toFixed(3)}
+                  <span className="text-ink font-semibold">Gas signal (V, uncalibrated proxy):</span> {latest.gas_ppm.toFixed(3)}
                 </div>
                 <div>
                   <span className="text-ink font-semibold">Equipment Power:</span> {latest.power_mW.toFixed(3)} mW
