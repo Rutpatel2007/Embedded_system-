@@ -3,12 +3,13 @@ Seed Demo Script for TrueSense Backend.
 Ingests simulation_output/log_chain.jsonl into a local demo backend through POST /api/v1/readings/ingest.
 
 Usage:
-    python scripts/seed_demo.py [--backend http://127.0.0.1:8000] [--batch-size 50]
+    python scripts/seed_demo.py [--backend http://127.0.0.1:8000] [--batch-size 50] [--reset]
 """
 
 import argparse
 import json
 import os
+import sqlite3
 import sys
 import urllib.request
 import urllib.error
@@ -19,6 +20,48 @@ LOG_CHAIN_PATH = os.path.join(
     "simulation_output",
     "log_chain.jsonl",
 )
+
+DEFAULT_DB_LOCATIONS = [
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "truesense_test.db"),
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend", "truesense_test.db"),
+]
+
+
+def find_db_path() -> str | None:
+    for path in DEFAULT_DB_LOCATIONS:
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def reset_local_db():
+    db_path = find_db_path()
+    if not db_path:
+        return
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM readings")
+        conn.commit()
+        conn.close()
+        print(f"[+] Cleared demo readings from local database.")
+    except Exception as e:
+        print(f"[!] Warning clearing database: {e}")
+
+
+def check_existing_readings(backend_url: str, device_id: str = "TS001") -> int:
+    url = f"{backend_url}/api/v1/readings/{device_id}?limit=1"
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data.get("total_records", 0)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return 0
+        return 0
+    except Exception:
+        return 0
 
 
 def register_device_if_needed(backend_url: str, device_id: str = "TS001"):
@@ -101,6 +144,7 @@ def main():
     parser.add_argument("--backend", default=DEFAULT_BACKEND, help="Backend URL (default: http://127.0.0.1:8000)")
     parser.add_argument("--batch-size", type=int, default=50, help="Batch size for POST /readings/ingest")
     parser.add_argument("--file", default=LOG_CHAIN_PATH, help="Path to log_chain.jsonl")
+    parser.add_argument("--reset", action="store_true", help="Clear existing readings in local backend before seeding")
 
     args = parser.parse_args()
 
@@ -115,6 +159,15 @@ def main():
         sys.exit(1)
 
     register_device_if_needed(args.backend, "TS001")
+
+    if args.reset:
+        reset_local_db()
+    else:
+        existing_count = check_existing_readings(args.backend, "TS001")
+        if existing_count > 0:
+            print(f"[*] Backend already seeded ({existing_count} records present). Pass --reset to clear and reseed.")
+            return
+
     ingest_batches(args.backend, args.file, args.batch_size)
 
 
