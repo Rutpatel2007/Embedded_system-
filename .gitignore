@@ -1,5 +1,8 @@
 .pio/
-.vscode/
+secrets.h
+src/secrets.h
+.vscode/*
+!.vscode/extensions.json
 *.pyc
 __pycache__/
 node_modules/

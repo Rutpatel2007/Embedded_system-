@@ -44,13 +44,13 @@
   ],
   "latest_reading": {
     "device_id": "TS001",
-    "timestamp": 1792688879,
+    "timestamp": 1792689618,
     "gas_ppm": 0.999,
     "power_mW": 0.0,
     "plausibility": "NORMAL",
     "fingerprint_status": "SENSOR_OK",
-    "previous_hash": "41e74487491e1cdf6bf69ef543c7066be4de5aeadde2972d7f1af5b6ed5e3e8e",
-    "hash": "c8d6bed8b8fb475df54653becaad500cfcf95f65b51b382dc4ffdf615dc93600"
+    "previous_hash": "b3dec90dc41f8eee16bd09fe75f10856c187a0450c740657d8599c2dd6e43316",
+    "hash": "efb8727fdf4c1b77e5d6c1234bb468d73a70e19af62595bd2ccdc63b89496ae3"
   },
   "chain_verified": true
 }

@@ -108,3 +108,8 @@ Before freezing Phase 0 contracts for feature implementation, the following pote
    - *Proposed Resolution*: Measure the exact physical $R_L$ value on the actual hardware module before finalizing PPM conversion equations in firmware.
 3. **Floating Point Canonical Serialization**:
    - *Constraint*: `gas_ppm` and `power_mW` must strictly enforce 3 decimal places (`%.3f`) across C++ and Python to prevent subtle hash mismatch issues (`42.38` vs `42.380`).
+
+## Sensor Fingerprint Enrollment
+
+Use `ENROLL` on a first-use node to save the current MQ-135 signature as the trusted sensor. Use `REENROLL` only when intentionally replacing the MQ-135 sensor; it overwrites the trusted signature with the replacement sensor's signature after reboot.
+# Firmware orchestration now verifies the boot chain, supervises critical tasks with the watchdog, reports stack and queue health, and provides HEALTH/STATS diagnostics.
