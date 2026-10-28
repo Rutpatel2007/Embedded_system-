@@ -6,6 +6,7 @@
 namespace relay_module {
 bool init();
 void setRelay(bool enabled);
+bool requestRelay(bool enabled);
 bool getRelayState();
 uint32_t getDropCount();
 void startRelayTask();

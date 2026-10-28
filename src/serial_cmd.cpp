@@ -50,7 +50,11 @@ static void dispatchCommand(char* line) {
         portEXIT_CRITICAL(&commandTableMux);
         static_cast<void>(names);
         static_cast<void>(count);
+#ifdef TEST_MODE
+        Serial.println("COMMANDS: STATS STATS RESET RELAY FP FP CLEAR ENROLL REENROLL VERIFY TAMPER SYNC SYNC NOW SYNC RESET HEALTH SETTIME CAL IDLE GAS CHAIN TEST TEST ALL TEST STATUS TEST SUMMARY TEST ABORT GO HELP");
+#else
         Serial.println("COMMANDS: STATS STATS RESET RELAY FP FP CLEAR ENROLL REENROLL VERIFY TAMPER SYNC SYNC NOW SYNC RESET HEALTH SETTIME CAL IDLE GAS CHAIN HELP");
+#endif
         return;
     }
     serial_cmd_module::CommandHandler handler = nullptr;

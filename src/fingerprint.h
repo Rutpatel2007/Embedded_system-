@@ -16,6 +16,9 @@ void init();
 bool measureSignature(FingerprintSignature& signature);
 uint8_t getStatus();
 uint32_t getDropCount();
+#ifdef TEST_MODE
+bool isEnrolled();
+#endif
 QueueHandle_t getStatusQueue();
 void registerFingerprintCommands();
 void startFingerprintTask();

@@ -203,6 +203,16 @@ uint32_t getDropCount() {
     return drops;
 }
 
+#ifdef TEST_MODE
+bool isEnrolled() {
+    Preferences preferences;
+    if (!preferences.begin(FP_NVS_NAMESPACE, true)) return false;
+    bool enrolled = preferences.getBool(FP_NVS_ENROLLED_KEY, false);
+    preferences.end();
+    return enrolled;
+}
+#endif
+
 QueueHandle_t getStatusQueue() {
     return fingerprintStatusQueue;
 }

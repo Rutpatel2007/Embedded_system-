@@ -11,6 +11,9 @@
 #include "plausibility.h"
 #include "relay.h"
 #include "boot_monitor.h"
+#ifdef TEST_MODE
+#include "test_harness.h"
+#endif
 
 void setup() {
     Serial.begin(115200);
@@ -21,6 +24,10 @@ void setup() {
     hashchain_module::init();
     boot_monitor_module::init();
     boot_monitor_module::verifyBootChain();
+#ifdef TEST_MODE
+    storage_module::recoverPartialTodayTail();
+    bool testHarnessReady = test_harness_module::init();
+#endif
     plausibility_module::init();
     bool relayReady = relay_module::init();
     sensor_task_module::init();
@@ -37,6 +44,9 @@ void setup() {
     fingerprint_module::registerFingerprintCommands();
     network_task_module::registerNetworkCommands();
     boot_monitor_module::registerCommands();
+#ifdef TEST_MODE
+    test_harness_module::registerCommands();
+#endif
     Serial.printf("Serial command service: %s\n", serialReady ? "ready" : "unavailable");
     Serial.printf("DS3231 status: %s\n", rtcReady ? "ready" : "unavailable");
     Serial.printf("INA219 status: %s\n", powerReady ? "ready" : "unavailable");
@@ -51,6 +61,10 @@ void setup() {
     power_task_module::startPowerTask();
     rtc_time_module::startRtcTimeTask();
     network_task_module::startNetworkTask();
+#ifdef TEST_MODE
+    Serial.printf("Test harness: %s\n", testHarnessReady ? "ready" : "unavailable");
+    test_harness_module::startTask();
+#endif
 }
 
 void loop() {

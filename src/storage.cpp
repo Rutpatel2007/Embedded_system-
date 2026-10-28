@@ -471,6 +471,201 @@ uint32_t countUnsyncedRecords(const SyncCursor& cursor) {
     return total;
 }
 
+#ifdef TEST_MODE
+uint32_t countTodayLines() { return countTodayRecords(); }
+
+bool summarizeTodayFromLine(uint32_t firstLine, TestRecordSummary& summary) {
+    summary = {};
+    if (firstLine == 0 || !takeStorageLock()) return false;
+    char path[STORAGE_PATH_BUFFER_SIZE];
+    if (SD.cardType() == CARD_NONE || !getTodayFilePath(path, sizeof(path))) {
+        giveStorageLock();
+        return false;
+    }
+    File file = SD.open(path, FILE_READ);
+    if (!file) {
+        giveStorageLock();
+        return false;
+    }
+    uint32_t lineNumber = 0;
+    while (file.available()) {
+        String line = file.readStringUntil('\n');
+        ++lineNumber;
+        if (lineNumber < firstLine) continue;
+        ChainRecord record{};
+        if (!parseRecord(line, record)) continue;
+        ++summary.records;
+        if (record.plausibilityFlag == PLAUSIBILITY_NORMAL) ++summary.normal;
+        else if (record.plausibilityFlag == PLAUSIBILITY_PLAUSIBLE) ++summary.plausible;
+        else if (record.plausibilityFlag == PLAUSIBILITY_SUSPICIOUS) ++summary.suspicious;
+        if (record.fingerprintStatus == FP_STATUS_MISMATCH) ++summary.fingerprintMismatch;
+    }
+    file.close();
+    giveStorageLock();
+    return true;
+}
+
+bool verifyTodayFile(uint32_t& failingIndex, uint32_t& recordCount) {
+    failingIndex = UINT32_MAX;
+    recordCount = 0;
+    if (!takeStorageLock()) return false;
+    char path[STORAGE_PATH_BUFFER_SIZE];
+    if (SD.cardType() == CARD_NONE || !getTodayFilePath(path, sizeof(path))) {
+        giveStorageLock();
+        return false;
+    }
+    if (!SD.exists(path)) {
+        giveStorageLock();
+        return true;
+    }
+    File file = SD.open(path, FILE_READ);
+    if (!file) {
+        giveStorageLock();
+        return false;
+    }
+    ChainRecord previous{};
+    bool hasPrevious = false;
+    bool valid = true;
+    uint32_t lineIndex = 0;
+    while (file.available()) {
+        String line = file.readStringUntil('\n');
+        ChainRecord current{};
+        if (!parseRecord(line, current)) {
+            failingIndex = lineIndex;
+            valid = false;
+            break;
+        }
+        ++recordCount;
+        if ((hasPrevious && strcmp(current.previousHash, previous.hash) != 0) || hashchain_module::verifyChainSegment(&current, 1) != -1) {
+            failingIndex = lineIndex;
+            valid = false;
+            break;
+        }
+        previous = current;
+        hasPrevious = true;
+        ++lineIndex;
+    }
+    file.close();
+    giveStorageLock();
+    return valid;
+}
+
+bool backupTodayFile() {
+    if (!takeStorageLock()) return false;
+    char path[STORAGE_PATH_BUFFER_SIZE];
+    if (SD.cardType() == CARD_NONE || !getTodayFilePath(path, sizeof(path)) || !SD.exists(path)) {
+        giveStorageLock();
+        return false;
+    }
+    SD.remove(TEST_BACKUP_PATH);
+    File input = SD.open(path, FILE_READ);
+    File output = SD.open(TEST_BACKUP_PATH, FILE_WRITE);
+    if (!input || !output) {
+        if (input) input.close();
+        if (output) output.close();
+        SD.remove(TEST_BACKUP_PATH);
+        giveStorageLock();
+        return false;
+    }
+    uint8_t buffer[TEST_COPY_BUFFER_SIZE];
+    bool copied = true;
+    while (input.available()) {
+        int bytesRead = input.read(buffer, sizeof(buffer));
+        if (bytesRead <= 0 || output.write(buffer, static_cast<size_t>(bytesRead)) != static_cast<size_t>(bytesRead)) {
+            copied = false;
+            break;
+        }
+    }
+    input.close();
+    output.flush();
+    output.close();
+    if (!copied) SD.remove(TEST_BACKUP_PATH);
+    giveStorageLock();
+    return copied;
+}
+
+bool restoreTodayFile() {
+    if (!takeStorageLock()) return false;
+    char path[STORAGE_PATH_BUFFER_SIZE];
+    if (SD.cardType() == CARD_NONE || !getTodayFilePath(path, sizeof(path)) || !SD.exists(TEST_BACKUP_PATH)) {
+        giveStorageLock();
+        return false;
+    }
+    SD.remove(path);
+    bool restored = SD.rename(TEST_BACKUP_PATH, path);
+    giveStorageLock();
+    return restored;
+}
+
+bool recoverPartialTodayTail() {
+    if (!takeStorageLock()) return false;
+    char path[STORAGE_PATH_BUFFER_SIZE];
+    if (SD.cardType() == CARD_NONE || !getTodayFilePath(path, sizeof(path)) || !SD.exists(path)) {
+        giveStorageLock();
+        return false;
+    }
+    File input = SD.open(path, FILE_READ);
+    if (!input) {
+        giveStorageLock();
+        return false;
+    }
+    size_t fileSize = input.size();
+    size_t lastCompleteBytes = 0;
+    String trailing;
+    while (input.available()) {
+        int value = input.read();
+        if (value < 0) break;
+        if (value == '\n') {
+            lastCompleteBytes = input.position();
+            trailing = "";
+        } else {
+            trailing += static_cast<char>(value);
+        }
+    }
+    input.close();
+    ChainRecord finalRecord{};
+    bool validTrailingRecord = trailing.length() > 0 && parseRecord(trailing, finalRecord);
+    if (lastCompleteBytes == fileSize && !validTrailingRecord) {
+        giveStorageLock();
+        return true;
+    }
+    SD.remove(STORAGE_TEMP_PATH);
+    input = SD.open(path, FILE_READ);
+    File output = SD.open(STORAGE_TEMP_PATH, FILE_WRITE);
+    if (!input || !output) {
+        if (input) input.close();
+        if (output) output.close();
+        SD.remove(STORAGE_TEMP_PATH);
+        giveStorageLock();
+        return false;
+    }
+    size_t copyBytes = validTrailingRecord ? fileSize : lastCompleteBytes;
+    uint8_t buffer[TEST_COPY_BUFFER_SIZE];
+    bool copied = input.seek(0);
+    while (copied && copyBytes > 0) {
+        size_t request = copyBytes < sizeof(buffer) ? copyBytes : sizeof(buffer);
+        int bytesRead = input.read(buffer, request);
+        if (bytesRead <= 0 || output.write(buffer, static_cast<size_t>(bytesRead)) != static_cast<size_t>(bytesRead)) {
+            copied = false;
+            break;
+        }
+        copyBytes -= static_cast<size_t>(bytesRead);
+    }
+    if (copied && validTrailingRecord) copied = output.println() > 0;
+    input.close();
+    output.flush();
+    output.close();
+    if (copied) {
+        SD.remove(path);
+        copied = SD.rename(STORAGE_TEMP_PATH, path);
+    } else {
+        SD.remove(STORAGE_TEMP_PATH);
+    }
+    giveStorageLock();
+    return copied;
+}
+#endif
+
 static void verifyLastRecords() {
     ChainRecord records[CHAIN_VERIFY_DEFAULT_N];
     size_t count = readLastNRecords(CHAIN_VERIFY_DEFAULT_N, records, CHAIN_VERIFY_DEFAULT_N);

@@ -22,7 +22,7 @@ static void handleRelayCommand(const char* args) {
         Serial.println("Usage: RELAY ON|OFF");
         return;
     }
-    if (relayRequestQueue == nullptr || xQueueSend(relayRequestQueue, &enabled, 0) != pdPASS) {
+    if (!relay_module::requestRelay(enabled)) {
         portENTER_CRITICAL(&relayMux);
         ++relayDropCount;
         portEXIT_CRITICAL(&relayMux);
@@ -46,6 +46,14 @@ void setRelay(bool enabled) {
     relayState = enabled;
     bool outputHigh = RELAY_ACTIVE_LOW ? !enabled : enabled;
     digitalWrite(RELAY_PIN, outputHigh ? HIGH : LOW);
+}
+
+bool requestRelay(bool enabled) {
+    if (relayRequestQueue != nullptr && xQueueSend(relayRequestQueue, &enabled, 0) == pdPASS) return true;
+    portENTER_CRITICAL(&relayMux);
+    ++relayDropCount;
+    portEXIT_CRITICAL(&relayMux);
+    return false;
 }
 
 bool getRelayState() {
