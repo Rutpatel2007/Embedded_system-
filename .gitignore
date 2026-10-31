@@ -1,4 +1,5 @@
 .pio/
+.pio
 secrets.h
 src/secrets.h
 .vscode/*
@@ -7,8 +8,12 @@ src/secrets.h
 __pycache__/
 node_modules/
 dist/
+dashboard/dist/
 .env
 *.db
 *.sqlite
 *.sqlite3
+simulation_output/
+simulation_dashboard.json
+truesense_test.db
 
