@@ -1,6 +1,6 @@
-# TrueSense (PROOV) Web Dashboard
+# TrueSense Web Dashboard
 
-The web dashboard for **TrueSense (PROOV)**, a tamper-evident ESP32 emissions-monitoring system that binds uncalibrated gas proxy telemetry to industrial equipment electrical power states and commits every reading into a verifiable SHA-256 hash log.
+The web dashboard for **TrueSense**, a tamper-evident ESP32 emissions-monitoring system that binds uncalibrated gas proxy telemetry to industrial equipment electrical power states and commits every reading into a verifiable SHA-256 hash log.
 
 Designed with a calm, editorial, technical-instrument interface:
 - **Palette**: Warm off-white background (`#F6F4EF`), near-black ink (`#16181A`), hairline graphite borders (`#E2DFD7`), and deep teal accent (`#0F5C5A`). Muted alerts (warning ochre `#B7791F`, critical brick `#A63A2B`).
@@ -48,7 +48,6 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 | **Live Monitor** | `/live` | Time-aligned dual charts for gas sensor proxy voltage (`MQ-135`) and equipment power draw (`INA219`), range selector (50, 100, 200, 500 points), polling toggle (3s), and latest packet status cards. |
 | **Integrity** | `/integrity` | One-click full ledger walk trigger (`/verify/{device_id}`), visual linked block inspector (`H(n-1) -> H(n)`), and comprehensive per-record audit table. |
 | **Alerts** | `/alerts` | Filterable table by severity (`CRITICAL`, `HIGH`, etc.) and event type, with details drawer. Displays physical plausibility violations, sensor replacement alarms, and data tampering events. |
-| **ML Advisory** | `/ml-advisory` | Model metadata, exploratory parameters sliders, and side-by-side comparison between authoritative deterministic firmware verdict and advisory ML classifier. |
 | **Architecture** | `/architecture` | Complete technical reference for auditors: 4-stage firmware pipeline, pipe-delimited canonical serialization specification, and FreeRTOS task affinity table. |
 | **Project Status** | `/status` | Audited capability matrix honestly classifying every subsystem as `SOFTWARE_TESTED`, `SIMULATED`, `IMPLEMENTED`, or `UNVALIDATED`. |
 
@@ -85,7 +84,5 @@ During the audit of `/api/v1`, the following items were identified and cleanly a
 
 1. **No Device List Endpoint (`/devices`)**:
    - Defaulted primary node identifier to `TS001` (the enrolled factory test node).
-2. **No Backend Machine Learning Endpoints (`/api/v1/ml/status`, `/api/v1/ml/predict`) on backend**:
-   - Implemented a graceful client layer in `src/api/client.ts` that attempts the real backend routes first, falling back to local deterministic rule evaluation and advisory inference if the endpoint is absent.
-3. **Array vs Scalar Discrepancy in Documentation**:
+2. **Array vs Scalar Discrepancy in Documentation**:
    - The markdown documentation referenced `tampered_records: []` array, but the authoritative FastAPI backend schemas and SQLAlchemy implementation return integer counts `tampered_records: int` and `chain_breaks: int`. The frontend client strictly aligns with the real Pydantic response contract.

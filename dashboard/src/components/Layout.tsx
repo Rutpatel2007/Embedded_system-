@@ -9,7 +9,6 @@ const NAV_ITEMS = [
   { path: '/live', label: 'Live Monitor' },
   { path: '/integrity', label: 'Integrity' },
   { path: '/alerts', label: 'Alerts' },
-  { path: '/ml-advisory', label: 'ML Advisory' },
   { path: '/architecture', label: 'Architecture' },
   { path: '/status', label: 'Project Status' },
 ];
@@ -41,7 +40,7 @@ export function Layout() {
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 bg-teal" />
               <h1 className="text-sm font-bold tracking-tight text-ink uppercase font-mono-num">
-                TRUESENSE <span className="font-normal text-muted">/ PROOV</span>
+                TrueSense
               </h1>
             </div>
             <span className="text-muted/40">|</span>
@@ -110,7 +109,7 @@ export function Layout() {
       <footer className="border-t border-hairline py-4 px-4 sm:px-6 text-xs text-muted bg-surface">
         <div className="max-w-[1200px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 font-mono-num">
           <div>
-            TrueSense (PROOV) — Physical-Cryptographic Tamper-Evident Sensor System
+            TrueSense — Physical-Cryptographic Tamper-Evident Sensor System
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span>ESP32-WROOM-32</span>

@@ -72,7 +72,7 @@ export function ArchitecturePage() {
           <div className="space-y-1 text-muted text-xs leading-relaxed">
             <p><strong className="text-ink">Delimiter:</strong> ASCII 0x7C (<code className="bg-surface px-1 py-0.5 border border-hairline">|</code>). No spaces, no newlines.</p>
             <p><strong className="text-ink">Floats:</strong> Formatted to exactly 3 decimal places (<code className="bg-surface px-1 py-0.5 border border-hairline">%.3f</code>) e.g., <code className="bg-surface px-1 py-0.5 border border-hairline">42.381</code>.</p>
-            <p><strong className="text-ink">Genesis Previous Hash:</strong> Exactly 64 ASCII zeros (<code className="bg-surface px-1 py-0.5 border border-hairline">0000000000000000000000000000000000000000000000000000000000000000</code>).</p>
+            <p><strong className="text-ink">Genesis Previous Hash:</strong> SHA-256 of <code className="bg-surface px-1 py-0.5 border border-hairline">TRUESENSE-GENESIS-</code> followed by the device ID.</p>
           </div>
         </CardContent>
       </Card>

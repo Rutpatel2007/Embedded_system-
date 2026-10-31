@@ -7,7 +7,6 @@ import { OverviewPage } from './pages/OverviewPage';
 import { LiveMonitorPage } from './pages/LiveMonitorPage';
 import { IntegrityPage } from './pages/IntegrityPage';
 import { AlertsPage } from './pages/AlertsPage';
-import { MLAdvisoryPage } from './pages/MLAdvisoryPage';
 import { ArchitecturePage } from './pages/ArchitecturePage';
 import { ProjectStatusPage } from './pages/ProjectStatusPage';
 import './index.css';
@@ -31,7 +30,6 @@ createRoot(document.getElementById('root')!).render(
             <Route path="live" element={<LiveMonitorPage />} />
             <Route path="integrity" element={<IntegrityPage />} />
             <Route path="alerts" element={<AlertsPage />} />
-            <Route path="ml-advisory" element={<MLAdvisoryPage />} />
             <Route path="architecture" element={<ArchitecturePage />} />
             <Route path="status" element={<ProjectStatusPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

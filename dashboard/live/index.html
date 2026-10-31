@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TrueSense Live Instrument</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#090e15;--panel:#111a25;--panel2:#152130;--line:#263648;--text:#edf4fb;--muted:#93a5b8;--cyan:#45d7d0;--blue:#66a9ff;--amber:#f5b84b;--red:#ff6678;--green:#4bd29b}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 70% -20%,#1c3448 0,transparent 45%),var(--bg);color:var(--text);font:18px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}button,input{font:inherit}button{border:1px solid #35506a;background:#1a2a3a;color:var(--text);padding:12px 16px;border-radius:9px;font-weight:700;cursor:pointer;transition:.15s}button:hover:not(:disabled){border-color:var(--cyan);background:#20364a}button:disabled{opacity:.38;cursor:not-allowed}.primary{background:#087c7b;border-color:#18aaa4}.danger{border-color:#87424e;color:#ff9ba7}.wide{font-size:22px;padding:17px 24px;min-width:240px}.shell{max-width:1720px;margin:auto;padding:24px 30px 32px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:22px;padding:19px 22px;background:#101a26eF;border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 60px #0004}.brand{font-size:26px;font-weight:850;letter-spacing:.08em}.brand span{color:var(--cyan)}.subtitle,.label{color:var(--muted);font-size:14px;letter-spacing:.12em;text-transform:uppercase}.connection{display:flex;align-items:center;gap:10px;color:var(--muted);font-weight:700}.dot{height:12px;width:12px;border-radius:50%;background:#738397}.dot.on{background:var(--green);box-shadow:0 0 15px #4bd29b99}.top-actions{display:flex;align-items:center;gap:12px}.clockbox{text-align:right;min-width:180px}.clockbox strong{font-size:21px;font-variant-numeric:tabular-nums}.clockbox small{display:block;color:var(--muted)}.grid{display:grid;gap:18px}.layers{grid-template-columns:repeat(3,minmax(0,1fr));margin:20px 0}.card{background:linear-gradient(145deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:15px;padding:20px;min-width:0;box-shadow:0 14px 40px #0003}.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.layer-number{font-size:13px;color:var(--cyan);font-weight:800;letter-spacing:.14em}.card h2{font-size:20px;margin:3px 0 18px}.state{display:inline-flex;align-items:center;gap:9px;border-radius:999px;padding:7px 12px;font-weight:850;font-size:16px;letter-spacing:.06em;background:#4bd29b16;color:var(--green);border:1px solid #4bd29b55}.state.amber{background:#f5b84b16;color:var(--amber);border-color:#f5b84b66}.state.red{background:#ff667816;color:var(--red);border-color:#ff667866}.state.neutral{background:#8798aa16;color:#b0c0d0;border-color:#8798aa55}.metric-row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-top:1px solid #263648}.metric-row span:first-child{color:var(--muted)}.metric-row strong{font-variant-numeric:tabular-nums;text-align:right}.counts{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}.count-chip{padding:6px 9px;background:#0a111a;border:1px solid var(--line);border-radius:8px;font-size:14px;color:var(--muted)}.count-chip b{color:var(--text);margin-left:5px}.midgrid{grid-template-columns:minmax(0,1.7fr) minmax(330px,1fr);align-items:stretch}.chart-wrap{height:385px;position:relative}.chart-top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:12px}.chart-top h2{margin:0}.legend-note{color:var(--muted);font-size:14px}.verify-block{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px;padding-top:17px;border-top:1px solid var(--line)}.verify-result{font-size:18px;font-weight:900;letter-spacing:.1em;color:var(--muted)}.verify-result.pass{color:var(--green)}.verify-result.fail{color:var(--red)}.commands{margin-top:18px}.commands h2{margin:0 0 14px}.command-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}.command-grid button{padding:11px 8px;font-size:15px}.tamper-entry{display:flex;gap:8px}.tamper-entry input{width:90px;min-width:0;background:#0a111a;border:1px solid #35506a;border-radius:8px;color:var(--text);padding:8px}.rawlog{height:260px;overflow:auto;background:#070b10;border:1px solid #243345;border-radius:10px;padding:12px;margin-top:14px;font:14px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:#b8c7d7;white-space:pre-wrap;overflow-wrap:anywhere}.rawline{padding:1px 0;border-bottom:1px solid #19232e}.footerline{display:flex;justify-content:space-between;gap:16px;color:var(--muted);font-size:14px;padding:14px 4px}.hidden{display:none!important}@media(max-width:1100px){.command-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.midgrid{grid-template-columns:1fr}.layers{grid-template-columns:1fr 1fr}.topbar{flex-wrap:wrap}}@media(max-width:700px){.shell{padding:12px}.layers{grid-template-columns:1fr}.topbar{padding:15px}.top-actions{width:100%;justify-content:space-between}.chart-wrap{height:320px}.command-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.verify-block{align-items:flex-start;flex-direction:column}.footerline{flex-direction:column}}
+</style>
+</head>
+<body>
+<main class="shell">
+<header class="topbar">
+  <div><div class="brand"><span>TrueSense</span> / LIVE INSTRUMENT</div><div class="subtitle">Physical · identity · integrity</div></div>
+  <div class="top-actions">
+    <div class="connection"><i id="statusDot" class="dot"></i><span id="connectionStatus">Disconnected</span></div>
+    <button id="connectButton" class="primary">Connect</button><button id="disconnectButton" disabled>Disconnect</button>
+    <div class="clockbox"><strong id="deviceTime">Awaiting device time</strong><small>DEVICE TIME</small></div><div class="clockbox"><strong id="headerEquipMode">auto</strong><small>EQUIP MODE</small></div><div class="clockbox"><strong id="headerI2cErrors">0</strong><small>I2C ERRORS</small></div>
+  </div>
+</header>
+<section class="grid layers">
+  <article class="card"><div class="card-head"><div><div class="layer-number">LAYER 01</div><h2>Physical Plausibility</h2></div><span id="plausibilityState" class="state neutral">WAITING</span></div><div class="metric-row"><span>Equipment</span><strong id="equipmentState">—</strong></div><div class="metric-row"><span>Equipment mode</span><strong id="equipmentMode">auto</strong></div><div class="counts"><span class="count-chip">NORMAL <b id="normalCount">0</b></span><span class="count-chip">PLAUSIBLE <b id="plausibleCount">0</b></span><span class="count-chip">SUSPICIOUS <b id="suspiciousCount">0</b></span></div></article>
+  <article class="card"><div class="card-head"><div><div class="layer-number">LAYER 02</div><h2>Sensor Identity</h2></div><span id="fingerprintState" class="state neutral">PENDING</span></div><div class="metric-row"><span>Last distance</span><strong id="fingerprintDistance">—</strong></div><div class="metric-row"><span>Last update</span><strong id="fingerprintTime">—</strong></div></article>
+  <article class="card"><div class="card-head"><div><div class="layer-number">LAYER 03</div><h2>Tamper-Evident Log</h2></div><span id="chainState" class="state neutral">WAITING</span></div><div class="metric-row"><span>Records today</span><strong id="recordCount">—</strong></div><div class="metric-row"><span>Last hash</span><strong id="lastHash">—</strong></div><div class="metric-row"><span>Last verify</span><strong id="verifySummary">Not checked</strong></div></article>
+</section>
+<section class="grid midgrid">
+  <article class="card"><div class="chart-top"><h2>Live telemetry · last 120 seconds</h2><span id="latestReadout" class="legend-note">No samples yet</span></div><div class="chart-wrap"><canvas id="telemetryChart" aria-label="Live gas, baseline and power chart"></canvas></div><div class="legend-note">Gas and baseline: ppm · power: mW</div></article>
+  <article class="card"><div class="card-head"><div><div class="layer-number">INTEGRITY CHECK</div><h2>Verify the recorded chain</h2></div></div><p class="legend-note">Runs the firmware VERIFY command and displays its response.</p><button id="verifyButton" class="primary wide">Verify Integrity</button><div id="verifyResult" class="verify-result" style="margin-top:18px">NOT CHECKED</div></article>
+</section>
+<section class="card commands"><h2>Device commands</h2><div class="command-grid">
+  <button id="setTimeButton">SETTIME · browser clock</button><button data-command="CAL">CAL</button><button data-command="IDLE">IDLE</button><button data-command="ENROLL">ENROLL</button><button data-command="REENROLL">REENROLL</button><button data-command="FP">FP</button><button data-command="STATS">STATS</button><button data-command="CHAIN">CHAIN</button><button data-command="VERIFY">VERIFY</button><button data-command="STATUS">STATUS</button><button data-command="DEMO RESET">DEMO RESET</button>
+  <div class="tamper-entry"><input id="fpTolerance" type="number" min="0" step="1" placeholder="n" aria-label="Fingerprint tolerance"><button id="fpToleranceButton">Set FP tolerance</button></div>
+  <div class="tamper-entry"><input id="tamperLine" type="number" min="1" step="1" placeholder="Line" aria-label="Tamper line"><button id="tamperButton">TAMPER</button></div>
+  <button data-command="CHAIN RESET" id="chainResetButton" class="danger" disabled title="Firmware HELP does not advertise this command">CHAIN RESET</button><button data-command="RELAY ON">RELAY ON</button><button data-command="RELAY OFF">RELAY OFF</button><button data-command="EQUIP ON" class="equip-command" disabled>EQUIP ON</button><button data-command="EQUIP OFF" class="equip-command" disabled>EQUIP OFF</button><button data-command="EQUIP AUTO" class="equip-command" disabled>EQUIP AUTO</button>
+</div></section>
+<section class="card" style="margin-top:18px"><div class="chart-top"><h2>Raw serial log</h2><span class="legend-note">Last 200 lines</span></div><div id="rawLog" class="rawlog" aria-live="polite"></div></section>
+<div class="footerline"><span>USB serial · 115200 baud · Chrome / Edge</span><span id="storageSummary">Storage status: awaiting firmware output</span></div>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const logNode = $('rawLog');
+  const maxSamples = 240;
+  const samples = [];
+  const state = { port: null, reader: null, writer: null, connected: false, stopping: false, pollTimer: 0, previousStats: null, severity: 'WAITING', verify: null, capabilities: new Set(), latestTimestamp: null };
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  const chart = window.Chart ? new Chart($('telemetryChart'), { type: 'line', data: { labels: [], datasets: [ { label: 'Gas ppm', data: [], borderColor: '#45d7d0', backgroundColor: '#45d7d018', borderWidth: 3, pointRadius: 0, tension: .24, yAxisID: 'y' }, { label: 'Baseline ppm', data: [], borderColor: '#66a9ff', borderDash: [8,6], borderWidth: 2, pointRadius: 0, tension: 0, yAxisID: 'y' }, { label: 'Power mW', data: [], borderColor: '#f5b84b', borderWidth: 2, pointRadius: 0, tension: .2, yAxisID: 'power' } ] }, options: { animation: false, responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: 'index' }, plugins: { legend: { labels: { color: '#d3dfeb', boxWidth: 18, font: { size: 14 } } } }, scales: { x: { ticks: { color: '#93a5b8', maxTicksLimit: 8 }, grid: { color: '#ffffff0c' } }, y: { title: { display: true, text: 'ppm', color: '#45d7d0' }, ticks: { color: '#93a5b8' }, grid: { color: '#ffffff12' } }, power: { position: 'right', title: { display: true, text: 'mW', color: '#f5b84b' }, ticks: { color: '#93a5b8' }, grid: { drawOnChartArea: false } } } } }) : null;
+
+  function addLog(line, direction) {
+    const row = document.createElement('div');
+    row.className = 'rawline';
+    row.textContent = `${new Date().toLocaleTimeString()} ${direction} ${line}`;
+    logNode.appendChild(row);
+    while (logNode.children.length > 200) logNode.firstElementChild.remove();
+    logNode.scrollTop = logNode.scrollHeight;
+  }
+
+  function setConnection(connected, message) {
+    state.connected = connected;
+    $('connectionStatus').textContent = message;
+    $('statusDot').classList.toggle('on', connected);
+    $('connectButton').disabled = connected;
+    $('disconnectButton').disabled = !connected;
+    document.querySelectorAll('[data-command],#tamperButton,#verifyButton,#setTimeButton').forEach((button) => {
+      if (!button.classList.contains('equip-command') && button.id !== 'chainResetButton') button.disabled = !connected;
+    });
+    updateOptionalButtons();
+  }
+
+  function setPill(node, text, tone) {
+    node.textContent = text;
+    node.className = `state ${tone || 'neutral'}`;
+  }
+
+  function updateOptionalButtons() {
+    const chainReset = state.capabilities.has('CHAIN RESET');
+    $('chainResetButton').disabled = !state.connected || !chainReset;
+    const equip = state.capabilities.has('EQUIP');
+    document.querySelectorAll('.equip-command').forEach((button) => { button.disabled = !state.connected || !equip; });
+  }
+
+  function updateSeverity(value) {
+    const normalized = String(value).toUpperCase();
+    if (normalized.includes('SUSPICIOUS') || normalized === '2') state.severity = 'SUSPICIOUS';
+    else if (normalized.includes('PLAUSIBLE') || normalized === '1') state.severity = 'PLAUSIBLE';
+    else if (normalized.includes('NORMAL') || normalized === '0') state.severity = 'NORMAL';
+    const tones = { NORMAL: 'state', PLAUSIBLE: 'state amber', SUSPICIOUS: 'state red' };
+    setPill($('plausibilityState'), state.severity, tones[state.severity] || 'state neutral');
+  }
+
+  function parseFields(line) {
+    const fields = {};
+    for (const match of line.matchAll(/([A-Za-z_][A-Za-z0-9_]*)=([^\s]+)/g)) fields[match[1]] = match[2];
+    return fields;
+  }
+
+  function parseTelemetry(line) {
+    if (!line.startsWith('timestamp=')) return false;
+    const fields = parseFields(line);
+    const timestamp = Number(fields.timestamp);
+    const raw = Number(fields.raw_mV);
+    const gasScaled = Number(fields.gas_ppm_x100);
+    const baselineScaled = Number(fields.baseline_x100);
+    const power = Number(fields.power_mW);
+    if (![timestamp, raw, gasScaled, baselineScaled, power].every(Number.isFinite)) return true;
+    const timestampMs = timestamp > 0 ? timestamp * 1000 : Date.now();
+    state.latestTimestamp = timestampMs;
+    $('deviceTime').textContent = timestamp > 0 ? new Date(timestampMs).toLocaleString() : 'RTC unavailable';
+    const equipValue = fields.equip ?? fields.active ?? fields.equipmentActive;
+    $('equipmentState').textContent = equipValue === undefined ? '—' : (equipValue === '1' || equipValue.toLowerCase() === 'on' || equipValue.toLowerCase() === 'true' ? 'ON' : 'OFF');
+    if (fields.equip_mode && ['on', 'off', 'auto'].includes(fields.equip_mode.toLowerCase())) $('equipmentMode').textContent = fields.equip_mode.toLowerCase();
+    const sample = { time: timestampMs, gas: gasScaled / 100, baseline: baselineScaled / 100, power };
+    samples.push(sample);
+    const cutoff = Date.now() - 120000;
+    while (samples.length > maxSamples || (samples.length && samples[0].time < cutoff)) samples.shift();
+    updateChart();
+    $('latestReadout').textContent = `Gas ${sample.gas.toFixed(2)} ppm · Power ${sample.power} mW · Raw ${raw} mV`;
+    const flag = fields.plausibilityFlag ?? fields.plausibility_flag ?? fields.plausibility;
+    if (flag !== undefined) updateSeverity(flag);
+    const fingerprint = fields.fingerprintStatus ?? fields.fingerprint_status;
+    if (fingerprint !== undefined) updateFingerprint(fingerprint);
+    return true;
+  }
+
+  function updateChart() {
+    if (!chart) return;
+    chart.data.labels = samples.map((sample) => new Date(sample.time).toLocaleTimeString([], { minute: '2-digit', second: '2-digit' }));
+    chart.data.datasets[0].data = samples.map((sample) => sample.gas);
+    chart.data.datasets[1].data = samples.map((sample) => sample.baseline);
+    chart.data.datasets[2].data = samples.map((sample) => sample.power);
+    chart.update('none');
+  }
+
+  function updateFingerprint(value) {
+    const status = String(value).toUpperCase().replace(/[^A-Z_]/g, '');
+    if (!['OK','MISMATCH','NOT_ENROLLED','PENDING'].includes(status)) return;
+    const tone = status === 'OK' ? 'state' : status === 'MISMATCH' ? 'state red' : status === 'PENDING' ? 'state amber' : 'state neutral';
+    setPill($('fingerprintState'), status, tone);
+    $('fingerprintTime').textContent = new Date().toLocaleTimeString();
+  }
+
+  function parseStats(line) {
+    const match = line.match(/^STATS normal=(\d+) plausible=(\d+) suspicious=(\d+)$/);
+    if (!match) return false;
+    const next = { normal: Number(match[1]), plausible: Number(match[2]), suspicious: Number(match[3]) };
+    $('normalCount').textContent = next.normal.toLocaleString();
+    $('plausibleCount').textContent = next.plausible.toLocaleString();
+    $('suspiciousCount').textContent = next.suspicious.toLocaleString();
+    if (state.previousStats) {
+      if (next.suspicious > state.previousStats.suspicious) updateSeverity('SUSPICIOUS');
+      else if (next.plausible > state.previousStats.plausible) updateSeverity('PLAUSIBLE');
+      else if (next.normal > state.previousStats.normal) updateSeverity('NORMAL');
+    } else if (next.normal + next.plausible + next.suspicious > 0) {
+      updateSeverity(next.suspicious ? 'SUSPICIOUS' : next.plausible ? 'PLAUSIBLE' : 'NORMAL');
+    }
+    state.previousStats = next;
+    return true;
+  }
+
+  function parseState(line) {
+    if (!line.startsWith('STATE ')) return false;
+    try {
+      const value = JSON.parse(line.slice(6));
+      if (!value || typeof value !== 'object') return true;
+      const timestampMs = Number(value.t) * 1000;
+      const gasScaled = Number(value.gas);
+      const baselineScaled = Number(value.base);
+      const power = Number(value.pw);
+      if (![timestampMs, gasScaled, baselineScaled, power].every(Number.isFinite)) return true;
+      state.latestTimestamp = timestampMs;
+      $('deviceTime').textContent = Number(value.t) > 0 ? new Date(timestampMs).toLocaleString() : 'RTC unavailable';
+      $('equipmentState').textContent = Number(value.eq) === 1 ? 'ON' : 'OFF';
+      $('equipmentMode').textContent = String(value.eqm ?? 'auto');
+      $('headerEquipMode').textContent = String(value.eqm ?? 'auto');
+      $('headerI2cErrors').textContent = Number(value.i2c ?? 0).toLocaleString();
+      updateSeverity(value.pl);
+      updateFingerprint(value.fp);
+      $('fingerprintDistance').textContent = Number(value.fpd) < 0 ? 'n/a' : Number(value.fpd).toLocaleString();
+      $('normalCount').textContent = Number(value.n ?? 0).toLocaleString();
+      $('plausibleCount').textContent = Number(value.p ?? 0).toLocaleString();
+      $('suspiciousCount').textContent = Number(value.s ?? 0).toLocaleString();
+      $('recordCount').textContent = Number(value.chain ?? 0).toLocaleString();
+      if (value.ver === 'PASS') {
+        state.verify = { pass: true };
+        $('verifySummary').textContent = 'PASS';
+        $('verifyResult').textContent = 'PASS';
+        $('verifyResult').className = 'verify-result pass';
+        setPill($('chainState'), 'VERIFIED', 'state');
+      } else if (value.ver === 'FAIL') {
+        state.verify = { pass: false, index: Number(value.vfail) };
+        $('verifySummary').textContent = `FAIL · index ${value.vfail}`;
+        $('verifyResult').textContent = `FAIL · INDEX ${value.vfail}`;
+        $('verifyResult').className = 'verify-result fail';
+        setPill($('chainState'), 'TAMPER DETECTED', 'state red');
+      } else {
+        $('verifySummary').textContent = 'Not checked';
+        $('verifyResult').textContent = 'NOT CHECKED';
+        $('verifyResult').className = 'verify-result';
+        if (state.verify === null) setPill($('chainState'), 'CHAIN AVAILABLE', 'state');
+      }
+      const sample = { time: timestampMs || Date.now(), gas: gasScaled / 100, baseline: baselineScaled / 100, power };
+      if (!samples.length || samples[samples.length - 1].time !== sample.time) samples.push(sample);
+      const cutoff = Date.now() - 120000;
+      while (samples.length > maxSamples || (samples.length && samples[0].time < cutoff)) samples.shift();
+      updateChart();
+      $('latestReadout').textContent = `Gas ${sample.gas.toFixed(2)} ppm · Power ${sample.power} mW · Raw ${value.mv} mV`;
+      return true;
+    } catch {
+      return true;
+    }
+  }
+
+  function parseLine(line) {
+    if (!line) return;
+    if (parseState(line)) return;
+    if (parseTelemetry(line)) return;
+    if (parseStats(line)) return;
+    let match = line.match(/^VERIFY PASS records=(\d+)$/);
+    if (match) {
+      state.verify = { pass: true, records: Number(match[1]) };
+      $('verifySummary').textContent = `PASS · ${match[1]} records`;
+      $('verifyResult').textContent = `PASS · ${match[1]} RECORDS`;
+      $('verifyResult').className = 'verify-result pass';
+      setPill($('chainState'), 'VERIFIED', 'state');
+      return;
+    }
+    match = line.match(/^VERIFY FAIL index=(-?\d+) records=(\d+)$/);
+    if (match) {
+      state.verify = { pass: false, index: Number(match[1]), records: Number(match[2]) };
+      $('verifySummary').textContent = `FAIL · index ${match[1]}`;
+      $('verifyResult').textContent = `FAIL · INDEX ${match[1]}`;
+      $('verifyResult').className = 'verify-result fail';
+      setPill($('chainState'), 'TAMPER DETECTED', 'state red');
+      return;
+    }
+    match = line.match(/^CHAIN last_hash=(\S*) records_today=(\d+) drops=(\d+)$/);
+    if (match) {
+      $('recordCount').textContent = Number(match[2]).toLocaleString();
+      $('lastHash').textContent = match[1] ? `${match[1].slice(0,12)}…${match[1].slice(-8)}` : '—';
+      if (state.verify === null) setPill($('chainState'), 'CHAIN AVAILABLE', 'state');
+      return;
+    }
+    match = line.match(/^FP STATUS: ([A-Z_]+)(?: dist=(\d+))?$/);
+    if (match) {
+      updateFingerprint(match[1]);
+      if (match[2] !== undefined) $('fingerprintDistance').textContent = Number(match[2]).toLocaleString();
+      return;
+    }
+    match = line.match(/^FP DISTANCE: (n\/a|\d+)(?: tolerance=\d+)?$/);
+    if (match) {
+      $('fingerprintDistance').textContent = match[1] === 'n/a' ? 'n/a' : Number(match[1]).toLocaleString();
+      $('fingerprintTime').textContent = new Date().toLocaleTimeString();
+      return;
+    }
+    match = line.match(/^HEALTH (.+)$/);
+    if (match) {
+      const fields = parseFields(match[1]);
+      if (fields.boot_verify === 'OK') setPill($('chainState'), 'VERIFIED', 'state');
+      else if (fields.boot_verify === 'FAIL') setPill($('chainState'), 'VERIFY FAILED', 'state red');
+      else if (fields.boot_verify === 'SKIPPED') setPill($('chainState'), 'VERIFY SKIPPED', 'state amber');
+      if (fields.boot_count !== undefined && $('recordCount').textContent === '—') $('recordCount').textContent = fields.boot_count;
+      return;
+    }
+    match = line.match(/^STORAGE backend=(\S+) used_bytes=(\d+) total_bytes=(\d+) files=(\d+) current=(.*)$/);
+    if (match) {
+      $('storageSummary').textContent = `Storage ${match[1]} · ${match[2]} / ${match[3]} bytes · ${match[4]} files · ${match[5] || 'no current file'}`;
+    }
+    match = line.match(/^COMMANDS: (.+)$/);
+    if (match) {
+      const text = match[1].toUpperCase();
+      if (/\bEQUIP\b/.test(text)) state.capabilities.add('EQUIP');
+      if (/\bCHAIN\s+RESET\b/.test(text)) state.capabilities.add('CHAIN RESET');
+      updateOptionalButtons();
+    }
+  }
+
+  async function sendCommand(command) {
+    if (!state.connected || !state.writer) return;
+    try {
+      await state.writer.write(encoder.encode(`${command}\n`));
+      addLog(command, 'TX');
+    } catch (error) {
+      addLog(`write failed: ${error instanceof Error ? error.message : String(error)}`, 'ERR');
+      setConnection(false, 'Connection lost');
+      await disconnectPort(false);
+    }
+  }
+
+  async function readLoop(activeReader) {
+    let partial = '';
+    try {
+      while (state.connected && activeReader) {
+        const result = await activeReader.read();
+        if (result.done) break;
+        partial += decoder.decode(result.value, { stream: true });
+        const lines = partial.split(/\r?\n/);
+        partial = lines.pop() || '';
+        for (const line of lines) {
+          addLog(line, 'RX');
+          parseLine(line.trim());
+        }
+      }
+      if (partial.trim()) {
+        addLog(partial, 'RX');
+        parseLine(partial.trim());
+      }
+    } catch (error) {
+      if (state.connected) addLog(`serial read failed: ${error instanceof Error ? error.message : String(error)}`, 'ERR');
+    } finally {
+      try { activeReader.releaseLock(); } catch {}
+      if (state.reader === activeReader) state.reader = null;
+      if (state.connected && !state.stopping) await disconnectPort(false);
+    }
+  }
+
+  async function connectPort() {
+    if (!('serial' in navigator)) {
+      addLog('Web Serial is unavailable. Open this page in Chrome or Edge over a secure local context.', 'ERR');
+      return;
+    }
+    try {
+      const port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 115200 });
+      state.port = port;
+      state.stopping = false;
+      state.capabilities.clear();
+      state.writer = port.writable.getWriter();
+      state.reader = port.readable.getReader();
+      setConnection(true, 'Connected · 115200 baud');
+      addLog('port opened at 115200 baud', 'SYS');
+      void readLoop(state.reader);
+      await sendCommand('HELP');
+      window.clearInterval(state.pollTimer);
+      await pollDevice();
+      state.pollTimer = window.setInterval(() => { void pollDevice(); }, 5000);
+    } catch (error) {
+      addLog(`connection failed: ${error instanceof Error ? error.message : String(error)}`, 'ERR');
+      await disconnectPort(false);
+    }
+  }
+
+  async function disconnectPort(manual = true) {
+    state.stopping = true;
+    window.clearInterval(state.pollTimer);
+    state.pollTimer = 0;
+    setConnection(false, manual ? 'Disconnected' : 'Connection lost');
+    const activeReader = state.reader;
+    state.reader = null;
+    if (activeReader) {
+      try { await activeReader.cancel(); } catch {}
+      try { activeReader.releaseLock(); } catch {}
+    }
+    const activeWriter = state.writer;
+    state.writer = null;
+    if (activeWriter) {
+      try { activeWriter.releaseLock(); } catch {}
+    }
+    const activePort = state.port;
+    state.port = null;
+    if (activePort) {
+      try { await activePort.close(); } catch (error) { addLog(`port close: ${error instanceof Error ? error.message : String(error)}`, 'SYS'); }
+    }
+    state.stopping = false;
+  }
+
+  async function pollDevice() {
+    if (!state.connected) return;
+    await sendCommand('STATS');
+    await sendCommand('CHAIN');
+    await sendCommand('FP');
+  }
+
+  $('connectButton').addEventListener('click', () => { void connectPort(); });
+  $('disconnectButton').addEventListener('click', () => { void disconnectPort(true); });
+  document.querySelectorAll('[data-command]').forEach((button) => button.addEventListener('click', () => { void sendCommand(button.dataset.command); }));
+  $('verifyButton').addEventListener('click', () => { $('verifyResult').textContent = 'VERIFYING…'; $('verifyResult').className = 'verify-result'; void sendCommand('VERIFY'); });
+  $('tamperButton').addEventListener('click', () => {
+    const line = Number($('tamperLine').value);
+    if (!Number.isInteger(line) || line < 1) { addLog('enter a valid TAMPER line number', 'SYS'); return; }
+    void sendCommand(`TAMPER ${line}`);
+  });
+  $('setTimeButton').addEventListener('click', () => { void sendCommand(`SETTIME ${Math.floor(Date.now() / 1000)}`); });
+  $('fpToleranceButton').addEventListener('click', () => {
+    const tolerance = Number($('fpTolerance').value);
+    if (!Number.isInteger(tolerance) || tolerance < 0) { addLog('enter a non-negative fingerprint tolerance', 'SYS'); return; }
+    void sendCommand(`FP TOL ${tolerance}`);
+  });
+  navigator.serial?.addEventListener('disconnect', (event) => {
+    if (state.port && event.target === state.port) {
+      addLog('USB serial device unplugged', 'ERR');
+      void disconnectPort(false);
+    }
+  });
+  window.setInterval(() => {
+    if (state.latestTimestamp === null) $('deviceTime').textContent = 'Awaiting device time';
+  }, 1000);
+  setConnection(false, 'Disconnected');
+  addLog('ready · connect to the ESP32 serial port', 'SYS');
+})();
+</script>
+</body>
+</html>

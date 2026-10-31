@@ -103,7 +103,4 @@ export const api = {
     return request<AlertsResponse>(`/alerts${query}`);
   },
 
-  getMLStatus(): Promise<unknown> {
-    return request<unknown>('/ml/status');
-  },
 };
