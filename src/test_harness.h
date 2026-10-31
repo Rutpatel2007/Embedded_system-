@@ -1,5 +1,5 @@
-#ifndef PROOV_TEST_HARNESS_H
-#define PROOV_TEST_HARNESS_H
+#ifndef TRUESENSE_TEST_HARNESS_H
+#define TRUESENSE_TEST_HARNESS_H
 
 #ifdef TEST_MODE
 #include <Arduino.h>

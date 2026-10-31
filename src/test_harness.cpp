@@ -64,13 +64,13 @@ static bool storeState() {
 
 static void loadState() {
     Preferences preferences;
-    if (!preferences.begin(TEST_NVS_NAMESPACE, true)) return;
-    state.scenario = preferences.getUChar(TEST_NVS_SCENARIO_KEY, 0);
-    state.phase = preferences.getUChar(TEST_NVS_PHASE_KEY, 0);
-    state.runAll = preferences.getBool(TEST_NVS_RUN_ALL_KEY, false);
-    state.startLine = preferences.getUInt(TEST_NVS_START_LINE_KEY, 0);
-    state.startEpoch = preferences.getUInt(TEST_NVS_START_EPOCH_KEY, 0);
-    preferences.getBytes(TEST_NVS_RESULTS_KEY, state.results, sizeof(state.results));
+    if (!preferences.begin(TEST_NVS_NAMESPACE, false)) return;
+    state.scenario = preferences.isKey(TEST_NVS_SCENARIO_KEY) ? preferences.getUChar(TEST_NVS_SCENARIO_KEY, 0) : 0;
+    state.phase = preferences.isKey(TEST_NVS_PHASE_KEY) ? preferences.getUChar(TEST_NVS_PHASE_KEY, 0) : 0;
+    state.runAll = preferences.isKey(TEST_NVS_RUN_ALL_KEY) && preferences.getBool(TEST_NVS_RUN_ALL_KEY, false);
+    state.startLine = preferences.isKey(TEST_NVS_START_LINE_KEY) ? preferences.getUInt(TEST_NVS_START_LINE_KEY, 0) : 0;
+    state.startEpoch = preferences.isKey(TEST_NVS_START_EPOCH_KEY) ? preferences.getUInt(TEST_NVS_START_EPOCH_KEY, 0) : 0;
+    if (preferences.isKey(TEST_NVS_RESULTS_KEY)) preferences.getBytes(TEST_NVS_RESULTS_KEY, state.results, sizeof(state.results));
     preferences.end();
 }
 
@@ -217,7 +217,7 @@ static ScenarioRunResult runScenario(uint8_t scenario, bool resume) {
         uint32_t recordCount = 0;
         uint32_t failure = UINT32_MAX;
         bool verified = storage_module::verifyTodayFile(failure, recordCount);
-        uint32_t expected = TEST_NORMAL_DURATION_MS / SAMPLE_INTERVAL_MS;
+        uint32_t expected = SAMPLE_INTERVAL_MS > 0 ? TEST_NORMAL_DURATION_MS / SAMPLE_INTERVAL_MS : 0;
         uint32_t minimum = expected * TEST_NORMAL_PASS_PERCENT / 100;
         passed = waited && summaryOk && summary.records >= minimum && summary.suspicious == 0 && verified;
         snprintf(detail, sizeof(detail), "records=%lu file_records=%lu min=%lu suspicious=%lu verify=%s index=%lu", static_cast<unsigned long>(summary.records), static_cast<unsigned long>(recordCount), static_cast<unsigned long>(minimum), static_cast<unsigned long>(summary.suspicious), verified ? "PASS" : "FAIL", static_cast<unsigned long>(failure));
@@ -388,7 +388,7 @@ void registerCommands() {
     serial_cmd_module::registerCommand("GO", handleGoCommand);
 }
 
-void startTask() { xTaskCreate(task, "test_harness", TEST_TASK_STACK, nullptr, TEST_TASK_PRIORITY, nullptr); }
+void startTask() { if (testRequestQueue != nullptr) xTaskCreate(task, "test_harness", TEST_TASK_STACK, nullptr, TEST_TASK_PRIORITY, nullptr); }
 
 void task(void* parameter) {
     static_cast<void>(parameter);
