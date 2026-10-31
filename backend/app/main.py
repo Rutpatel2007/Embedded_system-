@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import Base, engine, get_db
-from app.hash_verifier import verify_hash
+from app.hash_verifier import genesis_hash, verify_hash
 from app.models import (
     Device,
     FingerprintStatusEnum,
@@ -128,7 +128,7 @@ def ingest_readings(
     )
 
     expected_previous_hash = (
-        last_reading.hash if last_reading is not None else "0" * 64
+        last_reading.hash if last_reading is not None else genesis_hash(ingest_data.device_id)
     )
 
     for record in ingest_data.readings:
@@ -166,7 +166,7 @@ def ingest_readings(
         if record.previous_hash != expected_previous_hash:
             db.rollback()
 
-            if last_reading is None and expected_previous_hash == "0" * 64:
+            if last_reading is None and expected_previous_hash == genesis_hash(ingest_data.device_id):
                 detail = (
                     "Hash-chain genesis verification failed for "
                     f"record at timestamp {record.timestamp}."
@@ -280,7 +280,7 @@ def get_readings(
                 if rec.previous_hash == preceding_db_rec.hash:
                     is_valid_chain = True
             else:
-                if rec.previous_hash == "0" * 64:
+                if rec.previous_hash == genesis_hash(device_id):
                     is_valid_chain = True
 
         response_readings.append({
@@ -330,7 +330,7 @@ def verify_chain(device_id: str, db: Session = Depends(get_db)):
 
     tampered_records = 0
     chain_breaks = 0
-    expected_previous_hash = "0" * 64
+    expected_previous_hash = genesis_hash(device_id)
 
     for record in readings:
         is_valid = verify_hash(
@@ -392,7 +392,7 @@ def get_alerts(device_id: Optional[str] = None, db: Session = Depends(get_db)):
             .order_by(Reading.id.asc())
             .all()
         )
-        expected_prev_hash = "0" * 64
+        expected_prev_hash = genesis_hash(dev_id)
         
         for rec in readings:
             # Physical Plausibility Alert

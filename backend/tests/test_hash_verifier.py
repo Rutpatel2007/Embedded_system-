@@ -2,12 +2,13 @@ from decimal import Decimal
 
 from app.hash_verifier import (
     calculate_hash,
+    genesis_hash,
     serialize_reading,
     verify_hash,
 )
 
 
-GENESIS_HASH = "0" * 64
+GENESIS_HASH = genesis_hash("TS001")
 
 
 def test_serialization_uses_exact_three_decimal_places():
@@ -23,7 +24,7 @@ def test_serialization_uses_exact_three_decimal_places():
 
     assert result == (
         "TS001|1750000000|42.381|823.420|NORMAL|SENSOR_OK|"
-        "0000000000000000000000000000000000000000000000000000000000000000"
+        + GENESIS_HASH
     )
 
 
@@ -147,7 +148,7 @@ def test_verify_hash_rejects_wrong_hash():
         expected_hash="0" * 64,
     )
 def test_authoritative_hash_vector():
-    expected_hash = "2e8e7995bb9576188874c028488bafb8a5973133134cbb123182b3c79051dcd3"
+    expected_hash = "67a58440a920e7353f0ea97fb8125bfd72abb103f7953051e1c602872aedf262"
     result = calculate_hash(
         device_id="TS001",
         timestamp=1750000000,

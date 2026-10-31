@@ -13,8 +13,8 @@ class DeviceRegisterRequest(BaseModel):
     @field_validator("device_id")
     @classmethod
     def validate_device_id(cls, value: str) -> str:
-        if not re.fullmatch(r"TS\d{3}", value):
-            raise ValueError("device_id must match format TS###")
+        if not re.fullmatch(r"(?:TS|TrueSense-)\d{3}", value):
+            raise ValueError("device_id must match format TS### or TrueSense-###")
         return value
 
 
@@ -37,8 +37,8 @@ class ReadingIngestItem(BaseModel):
     @field_validator("device_id")
     @classmethod
     def validate_device_id(cls, value: str) -> str:
-        if not re.fullmatch(r"TS\d{3}", value):
-            raise ValueError("device_id must match format TS###")
+        if not re.fullmatch(r"(?:TS|TrueSense-)\d{3}", value):
+            raise ValueError("device_id must match format TS### or TrueSense-###")
         return value
 
     @field_validator("previous_hash", "hash")

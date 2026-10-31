@@ -1,13 +1,13 @@
-﻿from decimal import Decimal
+from decimal import Decimal
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 from app.database import get_db
 from app.models import Reading
-from app.hash_verifier import calculate_hash
+from app.hash_verifier import calculate_hash, genesis_hash
 
 client = TestClient(app)
-GENESIS_HASH = "0" * 64
+GENESIS_HASH = genesis_hash("TS001")
 
 def register_device(device_id="TS001"):
     client.post("/api/v1/devices/register", json={

@@ -2,13 +2,13 @@ from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
-from app.hash_verifier import calculate_hash
+from app.hash_verifier import calculate_hash, genesis_hash
 from app.main import app
 
 
 client = TestClient(app)
 
-GENESIS_HASH = "0" * 64
+GENESIS_HASH = genesis_hash("TS001")
 
 
 def register_test_device():

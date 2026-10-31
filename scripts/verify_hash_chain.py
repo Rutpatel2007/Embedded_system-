@@ -8,7 +8,10 @@ import sys
 import json
 import hashlib
 
-GENESIS_HASH = "0000000000000000000000000000000000000000000000000000000000000000"
+GENESIS_PREFIX = "TRUESENSE-GENESIS-"
+
+def genesis_hash(device_id: str) -> str:
+    return hashlib.sha256(f"{GENESIS_PREFIX}{device_id}".encode("utf-8")).hexdigest()
 
 def serialize_record(device_id: str, timestamp: int, gas_ppm: float, power_mW: float, plausibility: str, fingerprint_status: str, previous_hash: str) -> str:
     """
@@ -24,10 +27,11 @@ def compute_sha256(canonical_str: str) -> str:
 
 def verify_test_vector_1() -> bool:
     """Vector 1 Verification"""
-    canonical = serialize_record("TS001", 1750000000, 42.381, 823.420, "NORMAL", "SENSOR_OK", GENESIS_HASH)
-    expected_canonical = "TS001|1750000000|42.381|823.420|NORMAL|SENSOR_OK|0000000000000000000000000000000000000000000000000000000000000000"
+    first_genesis = genesis_hash("TS001")
+    canonical = serialize_record("TS001", 1750000000, 42.381, 823.420, "NORMAL", "SENSOR_OK", first_genesis)
+    expected_canonical = f"TS001|1750000000|42.381|823.420|NORMAL|SENSOR_OK|{first_genesis}"
     digest = compute_sha256(canonical)
-    expected_digest = "2e8e7995bb9576188874c028488bafb8a5973133134cbb123182b3c79051dcd3"
+    expected_digest = "67a58440a920e7353f0ea97fb8125bfd72abb103f7953051e1c602872aedf262"
 
     match_str = (canonical == expected_canonical)
     match_hash = (digest == expected_digest)
@@ -38,11 +42,11 @@ def verify_test_vector_1() -> bool:
 
 def verify_test_vector_2() -> bool:
     """Vector 2 Verification"""
-    prev_hash = "2e8e7995bb9576188874c028488bafb8a5973133134cbb123182b3c79051dcd3"
+    prev_hash = "67a58440a920e7353f0ea97fb8125bfd72abb103f7953051e1c602872aedf262"
     canonical = serialize_record("TS001", 1750000500, 120.500, 850.000, "PLAUSIBLE", "SENSOR_OK", prev_hash)
     expected_canonical = f"TS001|1750000500|120.500|850.000|PLAUSIBLE|SENSOR_OK|{prev_hash}"
     digest = compute_sha256(canonical)
-    expected_digest = "5b1e21572e9523d3d1ec209de9d7678f0f649fc7f7bde55cf991d0a6940611a6"
+    expected_digest = "7d4d061bf1afdf45df908d6d4b48bf1d3875766a463792601d9d2147bd43d552"
 
     match_str = (canonical == expected_canonical)
     match_hash = (digest == expected_digest)
@@ -54,7 +58,7 @@ def verify_test_vector_2() -> bool:
 def verify_jsonl_file(file_path: str) -> bool:
     """Verifies an entire .jsonl hash chain file."""
     print(f"\nVerifying JSONL Chain File: {file_path}")
-    expected_prev = GENESIS_HASH
+    expected_prev = None
     record_count = 0
 
     try:
@@ -64,6 +68,8 @@ def verify_jsonl_file(file_path: str) -> bool:
                 if not line:
                     continue
                 rec = json.loads(line)
+                if expected_prev is None:
+                    expected_prev = genesis_hash(rec["device_id"])
                 
                 canonical = serialize_record(
                     rec["device_id"],

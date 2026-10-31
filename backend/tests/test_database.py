@@ -5,6 +5,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from decimal import Decimal
 from app.database import Base
+from app.hash_verifier import calculate_hash, genesis_hash
 from app.models.db_models import Device, Reading, PlausibilityEnum, FingerprintStatusEnum
 
 # Use in-memory SQLite for testing to avoid leaving files
@@ -49,6 +50,7 @@ def test_create_and_retrieve_device_and_reading(db):
     assert device.enrolled_fingerprint == fingerprint
 
     # Test Reading insertion
+    record_hash = calculate_hash("TS001", 1750000000, "42.381", "823.420", "NORMAL", "SENSOR_OK", genesis_hash("TS001"))
     reading = Reading(
         device_id="TS001",
         timestamp=1750000000,
@@ -56,15 +58,15 @@ def test_create_and_retrieve_device_and_reading(db):
         power_mW=Decimal("823.420"),
         plausibility=PlausibilityEnum.NORMAL,
         fingerprint_status=FingerprintStatusEnum.SENSOR_OK,
-        previous_hash="0000000000000000000000000000000000000000000000000000000000000000",
-        hash="2e8e7995bb9576188874c028488bafb8a5973133134cbb123182b3c79051dcd3"
+        previous_hash=genesis_hash("TS001"),
+        hash=record_hash
     )
     db.add(reading)
     db.commit()
     db.refresh(reading)
     
     # Verify Reading canonical fields
-    saved = db.query(Reading).filter_by(hash="2e8e7995bb9576188874c028488bafb8a5973133134cbb123182b3c79051dcd3").first()
+    saved = db.query(Reading).filter_by(hash=record_hash).first()
     assert saved is not None
     assert saved.device_id == "TS001"
     assert saved.timestamp == 1750000000
@@ -74,7 +76,7 @@ def test_create_and_retrieve_device_and_reading(db):
     assert saved.power_mW == Decimal("823.420")
     assert saved.plausibility == PlausibilityEnum.NORMAL
     assert saved.fingerprint_status == FingerprintStatusEnum.SENSOR_OK
-    assert saved.previous_hash == "0000000000000000000000000000000000000000000000000000000000000000"
+    assert saved.previous_hash == genesis_hash("TS001")
 
 def test_foreign_key_enforcement(db):
     # Try inserting Reading without a valid Device

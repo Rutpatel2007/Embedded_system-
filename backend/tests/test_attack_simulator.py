@@ -1,13 +1,13 @@
-﻿import pytest
+import pytest
 from decimal import Decimal
 from fastapi.testclient import TestClient
 from app.main import app
 from app.database import get_db
-from app.hash_verifier import calculate_hash
+from app.hash_verifier import calculate_hash, genesis_hash
 from app.attack_simulator import AttackSimulator
 
 client = TestClient(app)
-GENESIS_HASH = "0" * 64
+GENESIS_HASH = genesis_hash("TS001")
 
 def register_and_ingest(device_id="TS001", count=3):
     client.post("/api/v1/devices/register", json={
@@ -16,7 +16,7 @@ def register_and_ingest(device_id="TS001", count=3):
         "enrolled_fingerprint": [1.0] * 20
     })
     readings = []
-    prev_hash = GENESIS_HASH
+    prev_hash = genesis_hash(device_id)
     for i in range(count):
         t = 1000 + i * 10
         gas = Decimal("42.000")

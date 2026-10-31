@@ -1,5 +1,5 @@
 """
-Generate Demo Scenario Script for TrueSense (PROOV).
+Generate Demo Scenario Script for TrueSense.
 Generates ~600 smooth, realistic-looking sensor readings at 500ms spacing,
 ending near the current real-world time so the dashboard freshness indicator remains green.
 

@@ -1,6 +1,12 @@
 import hashlib
 from decimal import Decimal
 
+GENESIS_PREFIX = "TRUESENSE-GENESIS-"
+
+
+def genesis_hash(device_id: str) -> str:
+    return hashlib.sha256(f"{GENESIS_PREFIX}{device_id}".encode("utf-8")).hexdigest()
+
 
 def format_decimal(value: Decimal | float | int | str) -> str:
     return f"{Decimal(str(value)):.3f}"
