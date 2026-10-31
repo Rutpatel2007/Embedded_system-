@@ -1,5 +1,5 @@
-#ifndef PROOV_SERIAL_CMD_H
-#define PROOV_SERIAL_CMD_H
+#ifndef TRUESENSE_SERIAL_CMD_H
+#define TRUESENSE_SERIAL_CMD_H
 
 #include <Arduino.h>
 

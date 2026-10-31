@@ -6,6 +6,7 @@
 #include "boot_monitor.h"
 #include <ArduinoJson.h>
 #include <SD.h>
+#include <LittleFS.h>
 #include <SPI.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,7 +17,9 @@
 enum StorageCommandType : uint8_t {
     STORAGE_COMMAND_VERIFY,
     STORAGE_COMMAND_TAMPER,
-    STORAGE_COMMAND_CHAIN
+    STORAGE_COMMAND_CHAIN,
+    STORAGE_COMMAND_CHAIN_RESET,
+    STORAGE_COMMAND_FS_FORMAT
 };
 
 struct StorageCommand {
@@ -26,6 +29,15 @@ struct StorageCommand {
 
 static QueueHandle_t storageCommandQueue;
 static SemaphoreHandle_t storageMutex;
+static bool sdMounted;
+static bool storageMounted;
+static FS* activeFileSystem;
+static uint8_t activeBackend;
+static bool storageVerifyAvailable;
+static bool storageVerifyPassed;
+static int32_t storageVerifyFailure = -1;
+static uint32_t todayRecordsCached;
+static bool storageFullReported;
 
 static bool takeStorageLock() {
     return storageMutex != nullptr && xSemaphoreTake(storageMutex, portMAX_DELAY) == pdTRUE;
@@ -60,19 +72,82 @@ static void handleTamperCommand(const char* args) {
 }
 
 static void handleChainCommand(const char* args) {
+    if (strcasecmp(args, "RESET") == 0) {
+        enqueueStorageCommand({STORAGE_COMMAND_CHAIN_RESET, 0});
+        return;
+    }
     if (args[0] != '\0') {
-        Serial.println("CHAIN takes no arguments");
+        Serial.println("CHAIN [RESET]");
         return;
     }
     enqueueStorageCommand({STORAGE_COMMAND_CHAIN, 0});
 }
 
-static bool mountCard() {
+static void handleFsCommand(const char* args) {
+    if (strcasecmp(args, "FORMAT") != 0) { Serial.println("Usage: FS FORMAT"); return; }
+    enqueueStorageCommand({STORAGE_COMMAND_FS_FORMAT, 0});
+}
+
+static bool mountSd() {
+    sdMounted = false;
+    SD.end();
     bool mounted = SD.begin(MICROSD_CS_PIN, SPI, SD_FREQUENCY_HZ);
-    if (mounted && !SD.exists(LOG_DIR)) {
-        mounted = SD.mkdir(LOG_DIR);
+#if SD_FORMAT_ON_FAIL
+    if (!mounted) {
+        bool formatted = SD.begin(MICROSD_CS_PIN, SPI, SD_FREQUENCY_HZ, "/sd", 5, true);
+        Serial.printf("SD FORMAT ATTEMPTED result=%u\n", static_cast<unsigned int>(formatted));
+        mounted = formatted;
     }
+#endif
+    if (mounted && !activeFileSystem->exists(LOG_DIR)) {
+        mounted = activeFileSystem->mkdir(LOG_DIR);
+    }
+    sdMounted = mounted;
+    if (!sdMounted) SD.end();
     return mounted;
+}
+
+static bool mountCard() {
+    storageMounted = false;
+    activeFileSystem = nullptr;
+    sdMounted = false;
+#if STORAGE_BACKEND != 2
+    activeFileSystem = &SD;
+    if (mountSd()) {
+        activeBackend = 1;
+        storageMounted = true;
+        return true;
+    }
+#endif
+#if STORAGE_BACKEND != 1
+    bool mounted = LittleFS.begin(false);
+    if (!mounted) {
+        mounted = LittleFS.begin(true);
+        if (mounted) Serial.println("LITTLEFS FORMATTED");
+    } else {
+        Serial.println("LITTLEFS MOUNT OK");
+    }
+    if (mounted) {
+        activeFileSystem = &LittleFS;
+        storageMounted = true;
+        if (!LittleFS.exists(LOG_DIR) && !LittleFS.mkdir(LOG_DIR)) {
+            storageMounted = false;
+            LittleFS.end();
+            activeFileSystem = nullptr;
+            Serial.println("LITTLEFS FAILED");
+            return false;
+        }
+        activeBackend = 2;
+        storageMounted = true;
+        return true;
+    }
+#endif
+    activeFileSystem = nullptr;
+    storageMounted = false;
+#if STORAGE_BACKEND != 1
+    Serial.println("LITTLEFS FAILED");
+#endif
+    return false;
 }
 
 static bool parseRecord(const String& line, ChainRecord& record) {
@@ -109,7 +184,8 @@ static bool getLogFileInfo(File& file, uint32_t& fileDate, char* path, size_t pa
 }
 
 static bool findNextLogFile(uint32_t minimumDate, bool inclusive, uint32_t& selectedDate, char* selectedPath, size_t pathSize) {
-    File directory = SD.open(LOG_DIR);
+    if (!storageMounted) return false;
+    File directory = activeFileSystem->open(LOG_DIR);
     if (!directory || !directory.isDirectory()) {
         return false;
     }
@@ -188,16 +264,96 @@ bool init() {
     }
     storageCommandQueue = xQueueCreate(SERIAL_REQUEST_QUEUE_LENGTH, sizeof(StorageCommand));
     SPI.begin(MICROSD_SCK_PIN, MICROSD_MISO_PIN, MICROSD_MOSI_PIN, MICROSD_CS_PIN);
-    return mountCard();
+    if (!takeStorageLock()) return false;
+    bool mounted = mountCard();
+    giveStorageLock();
+    if (mounted) todayRecordsCached = countTodayRecords();
+    return mounted;
 }
 
 bool isReady() {
     if (!takeStorageLock()) {
         return false;
     }
-    bool ready = SD.cardType() != CARD_NONE;
+    bool ready = storageMounted;
     giveStorageLock();
     return ready;
+}
+
+bool isSdReady() { return storageMounted && sdMounted; }
+const char* backendName() { return activeBackend == 2 ? "flash" : activeBackend == 1 ? "sd" : "unavailable"; }
+
+bool lastVerifyPassed() { return storageVerifyAvailable && storageVerifyPassed; }
+bool hasLastVerify() { return storageVerifyAvailable; }
+int32_t lastVerifyFailureIndex() { return storageVerifyAvailable ? storageVerifyFailure : -1; }
+void clearVerifyState() { storageVerifyAvailable = false; storageVerifyPassed = false; storageVerifyFailure = -1; }
+uint32_t cachedTodayRecordCount() { return todayRecordsCached; }
+
+bool archiveLogFiles() {
+    if (!takeStorageLock()) return false;
+    if (!storageMounted) { giveStorageLock(); return false; }
+    if (activeBackend == 2) {
+        uint32_t totalBytes = LittleFS.totalBytes();
+        uint32_t usedBytes = LittleFS.usedBytes();
+        if (totalBytes > 0 && static_cast<uint64_t>(usedBytes) * 100U > static_cast<uint64_t>(totalBytes) * 90U) {
+            String archiveDirectory = String(LOG_DIR) + "/old";
+            File archived = activeFileSystem->open(archiveDirectory);
+            String oldestPath;
+            if (archived && archived.isDirectory()) {
+                File entry = archived.openNextFile();
+                while (entry) {
+                    if (!entry.isDirectory()) {
+                        String path = entry.name();
+                        if (oldestPath.isEmpty() || path < oldestPath) oldestPath = path;
+                    }
+                    entry.close();
+                    entry = archived.openNextFile();
+                }
+                archived.close();
+            } else if (archived) {
+                archived.close();
+            }
+            if (!oldestPath.isEmpty()) activeFileSystem->remove(oldestPath);
+            usedBytes = LittleFS.usedBytes();
+            if (static_cast<uint64_t>(usedBytes) * 100U > static_cast<uint64_t>(totalBytes) * 90U) {
+                if (!storageFullReported) {
+                    Serial.println("STORAGE FULL");
+                    storageFullReported = true;
+                }
+                giveStorageLock();
+                return false;
+            }
+        }
+    }
+    String oldDirectory = String(LOG_DIR) + "/old";
+    if (!activeFileSystem->exists(oldDirectory) && !activeFileSystem->mkdir(oldDirectory)) {
+        giveStorageLock();
+        return false;
+    }
+    File directory = activeFileSystem->open(LOG_DIR);
+    if (!directory || !directory.isDirectory()) {
+        if (directory) directory.close();
+        giveStorageLock();
+        return false;
+    }
+    bool success = true;
+    File entry = directory.openNextFile();
+    while (entry) {
+        String name = entry.name();
+        bool eligible = !entry.isDirectory() && name.endsWith(".ndjson");
+        entry.close();
+        if (eligible) {
+            const char* baseName = strrchr(name.c_str(), '/');
+            baseName = baseName == nullptr ? name.c_str() : baseName + 1;
+            String destination = oldDirectory + "/" + baseName;
+            if (!activeFileSystem->rename(name, destination)) success = false;
+        }
+        entry = directory.openNextFile();
+    }
+    directory.close();
+    if (success) todayRecordsCached = 0;
+    giveStorageLock();
+    return success;
 }
 
 bool getTodayFilePath(char* output, size_t outputSize) {
@@ -217,16 +373,25 @@ bool appendRecordToFile(const ChainRecord& record) {
     if (!takeStorageLock()) {
         return false;
     }
-    if (SD.cardType() == CARD_NONE) {
+    if (!storageMounted) {
         giveStorageLock();
         return false;
+    }
+    if (activeBackend == 2) {
+        uint32_t total = LittleFS.totalBytes();
+        uint32_t used = LittleFS.usedBytes();
+        if (total == 0 || static_cast<uint64_t>(used) * 100U >= static_cast<uint64_t>(total) * 90U) {
+            if (!storageFullReported) { Serial.println("STORAGE FULL"); storageFullReported = true; }
+            giveStorageLock();
+            return false;
+        }
     }
     char path[STORAGE_PATH_BUFFER_SIZE];
     if (!getTodayFilePath(path, sizeof(path))) {
         giveStorageLock();
         return false;
     }
-    File file = SD.open(path, FILE_APPEND);
+    File file = activeFileSystem->open(path, FILE_APPEND);
     if (!file) {
         giveStorageLock();
         return false;
@@ -234,6 +399,7 @@ bool appendRecordToFile(const ChainRecord& record) {
     bool written = serializeJsonRecord(record, file) && file.println() > 0;
     file.flush();
     file.close();
+    if (written) ++todayRecordsCached;
     giveStorageLock();
     return written;
 }
@@ -242,13 +408,13 @@ size_t readLastNRecords(size_t count, ChainRecord* records, size_t capacity) {
     if (records == nullptr || count == 0 || capacity == 0 || !takeStorageLock()) {
         return 0;
     }
-    if (SD.cardType() == CARD_NONE) {
+    if (!storageMounted) {
         giveStorageLock();
         return 0;
     }
     size_t limit = count < capacity ? count : capacity;
     size_t found = 0;
-    File directory = SD.open(LOG_DIR);
+    File directory = activeFileSystem->open(LOG_DIR);
     if (!directory || !directory.isDirectory()) {
         giveStorageLock();
         return 0;
@@ -273,25 +439,76 @@ size_t readLastNRecords(size_t count, ChainRecord* records, size_t capacity) {
     return found;
 }
 
+bool verifyAllRecords(uint32_t& recordCount, int32_t& failingIndex) {
+    recordCount = 0;
+    failingIndex = -1;
+    if (!takeStorageLock()) return false;
+    if (!storageMounted) {
+        giveStorageLock();
+        return false;
+    }
+    String genesis = String(GENESIS_PREFIX) + DEVICE_ID;
+    char expectedGenesis[HASH_HEX_LEN + 1]{};
+    if (!hashchain_module::computeHash(genesis, expectedGenesis, sizeof(expectedGenesis))) {
+        giveStorageLock();
+        return false;
+    }
+    char previousHash[HASH_HEX_LEN + 1]{};
+    bool hasPrevious = false;
+    uint32_t searchDate = 0;
+    bool inclusive = true;
+    uint32_t fileDate = 0;
+    char path[STORAGE_PATH_BUFFER_SIZE];
+    bool found = findNextLogFile(searchDate, inclusive, fileDate, path, sizeof(path));
+    while (found) {
+        File file = activeFileSystem->open(path, FILE_READ);
+        if (!file) {
+            failingIndex = static_cast<int32_t>(recordCount + 1U);
+            giveStorageLock();
+            return false;
+        }
+        while (file.available()) {
+            String line = file.readStringUntil('\n');
+            ChainRecord record{};
+            if (!parseRecord(line, record) || hashchain_module::verifyChainSegment(&record, 1) != -1 || (hasPrevious && strcmp(record.previousHash, previousHash) != 0) || (!hasPrevious && strcmp(record.previousHash, expectedGenesis) != 0)) {
+                failingIndex = static_cast<int32_t>(recordCount + 1U);
+                file.close();
+                giveStorageLock();
+                return true;
+            }
+            snprintf(previousHash, sizeof(previousHash), "%s", record.hash);
+            hasPrevious = true;
+            ++recordCount;
+            vTaskDelay(pdMS_TO_TICKS(STORAGE_VERIFY_YIELD_MS));
+        }
+        file.close();
+        searchDate = fileDate;
+        inclusive = false;
+        found = findNextLogFile(searchDate, inclusive, fileDate, path, sizeof(path));
+    }
+    giveStorageLock();
+    return true;
+}
+
 bool tamperTodayLine(uint32_t lineNumber) {
     if (lineNumber == 0 || !takeStorageLock()) {
         return false;
     }
-    if (SD.cardType() == CARD_NONE) {
+    if (!storageMounted) {
         giveStorageLock();
         return false;
     }
     char todayPath[STORAGE_PATH_BUFFER_SIZE];
-    if (!getTodayFilePath(todayPath, sizeof(todayPath)) || !SD.exists(todayPath)) {
+    if (!getTodayFilePath(todayPath, sizeof(todayPath)) || !activeFileSystem->exists(todayPath)) {
         giveStorageLock();
         return false;
     }
-    File input = SD.open(todayPath, FILE_READ);
-    File output = SD.open(STORAGE_TEMP_PATH, FILE_WRITE);
+    File input = activeFileSystem->open(todayPath, FILE_READ);
+    File output = activeFileSystem->open(STORAGE_TEMP_PATH, FILE_WRITE);
     if (!input || !output) {
         if (input) input.close();
         if (output) output.close();
-        SD.remove(STORAGE_TEMP_PATH);
+        activeFileSystem->remove(STORAGE_TEMP_PATH);
         giveStorageLock();
         return false;
     }
@@ -316,12 +533,12 @@ bool tamperTodayLine(uint32_t lineNumber) {
     output.flush();
     output.close();
     if (!changed) {
-        SD.remove(STORAGE_TEMP_PATH);
+        activeFileSystem->remove(STORAGE_TEMP_PATH);
         giveStorageLock();
         return false;
     }
-    SD.remove(todayPath);
-    bool renamed = SD.rename(STORAGE_TEMP_PATH, todayPath);
+    activeFileSystem->remove(todayPath);
+    bool renamed = activeFileSystem->rename(STORAGE_TEMP_PATH, todayPath);
     giveStorageLock();
     return renamed;
 }
@@ -331,11 +548,11 @@ uint32_t countTodayRecords() {
     if (!takeStorageLock()) {
         return 0;
     }
-    if (SD.cardType() == CARD_NONE || !getTodayFilePath(path, sizeof(path))) {
+    if (!storageMounted || !getTodayFilePath(path, sizeof(path))) {
         giveStorageLock();
         return 0;
     }
-    File file = SD.open(path, FILE_READ);
+    File file = activeFileSystem->open(path, FILE_READ);
     if (!file) {
         giveStorageLock();
         return 0;
@@ -354,7 +571,7 @@ bool getOldestLogCursor(SyncCursor& cursor) {
     if (!takeStorageLock()) {
         return false;
     }
-    if (SD.cardType() == CARD_NONE) {
+    if (!storageMounted) {
         giveStorageLock();
         return false;
     }
@@ -375,7 +592,7 @@ bool readUnsyncedBatch(const SyncCursor& cursor, ChainRecord* records, size_t ca
     if (records == nullptr || capacity == 0 || !takeStorageLock()) {
         return false;
     }
-    if (SD.cardType() == CARD_NONE) {
+    if (!storageMounted) {
         giveStorageLock();
         return false;
     }
@@ -386,7 +603,7 @@ bool readUnsyncedBatch(const SyncCursor& cursor, ChainRecord* records, size_t ca
     bool found = findNextLogFile(searchDate, inclusive, fileDate, path, sizeof(path));
     bool firstFile = true;
     while (found) {
-        File file = SD.open(path, FILE_READ);
+        File file = activeFileSystem->open(path, FILE_READ);
         if (!file) {
             giveStorageLock();
             return false;
@@ -437,7 +654,7 @@ uint32_t countUnsyncedRecords(const SyncCursor& cursor) {
     if (!takeStorageLock()) {
         return 0;
     }
-    if (SD.cardType() == CARD_NONE) {
+    if (!storageMounted) {
         giveStorageLock();
         return 0;
     }
@@ -449,7 +666,7 @@ uint32_t countUnsyncedRecords(const SyncCursor& cursor) {
     bool found = findNextLogFile(searchDate, inclusive, fileDate, path, sizeof(path));
     bool firstFile = true;
     while (found) {
-        File file = SD.open(path, FILE_READ);
+        File file = activeFileSystem->open(path, FILE_READ);
         if (!file) {
             break;
         }
@@ -478,11 +695,11 @@ bool summarizeTodayFromLine(uint32_t firstLine, TestRecordSummary& summary) {
     summary = {};
     if (firstLine == 0 || !takeStorageLock()) return false;
     char path[STORAGE_PATH_BUFFER_SIZE];
-    if (SD.cardType() == CARD_NONE || !getTodayFilePath(path, sizeof(path))) {
+    if (!storageMounted || !getTodayFilePath(path, sizeof(path))) {
         giveStorageLock();
         return false;
     }
-    File file = SD.open(path, FILE_READ);
+    File file = activeFileSystem->open(path, FILE_READ);
     if (!file) {
         giveStorageLock();
         return false;
@@ -510,15 +727,15 @@ bool verifyTodayFile(uint32_t& failingIndex, uint32_t& recordCount) {
     recordCount = 0;
     if (!takeStorageLock()) return false;
     char path[STORAGE_PATH_BUFFER_SIZE];
-    if (SD.cardType() == CARD_NONE || !getTodayFilePath(path, sizeof(path))) {
+    if (!storageMounted || !getTodayFilePath(path, sizeof(path))) {
         giveStorageLock();
         return false;
     }
-    if (!SD.exists(path)) {
+    if (!activeFileSystem->exists(path)) {
         giveStorageLock();
         return true;
     }
-    File file = SD.open(path, FILE_READ);
+    File file = activeFileSystem->open(path, FILE_READ);
     if (!file) {
         giveStorageLock();
         return false;
@@ -553,17 +770,17 @@ bool verifyTodayFile(uint32_t& failingIndex, uint32_t& recordCount) {
 bool backupTodayFile() {
     if (!takeStorageLock()) return false;
     char path[STORAGE_PATH_BUFFER_SIZE];
-    if (SD.cardType() == CARD_NONE || !getTodayFilePath(path, sizeof(path)) || !SD.exists(path)) {
+    if (!storageMounted || !getTodayFilePath(path, sizeof(path)) || !activeFileSystem->exists(path)) {
         giveStorageLock();
         return false;
     }
-    SD.remove(TEST_BACKUP_PATH);
-    File input = SD.open(path, FILE_READ);
-    File output = SD.open(TEST_BACKUP_PATH, FILE_WRITE);
+    activeFileSystem->remove(TEST_BACKUP_PATH);
+    File input = activeFileSystem->open(path, FILE_READ);
+    File output = activeFileSystem->open(TEST_BACKUP_PATH, FILE_WRITE);
     if (!input || !output) {
         if (input) input.close();
         if (output) output.close();
-        SD.remove(TEST_BACKUP_PATH);
+        activeFileSystem->remove(TEST_BACKUP_PATH);
         giveStorageLock();
         return false;
     }
@@ -579,7 +796,7 @@ bool backupTodayFile() {
     input.close();
     output.flush();
     output.close();
-    if (!copied) SD.remove(TEST_BACKUP_PATH);
+    if (!copied) activeFileSystem->remove(TEST_BACKUP_PATH);
     giveStorageLock();
     return copied;
 }
@@ -587,24 +804,25 @@ bool backupTodayFile() {
 bool restoreTodayFile() {
     if (!takeStorageLock()) return false;
     char path[STORAGE_PATH_BUFFER_SIZE];
-    if (SD.cardType() == CARD_NONE || !getTodayFilePath(path, sizeof(path)) || !SD.exists(TEST_BACKUP_PATH)) {
+    if (!storageMounted || !getTodayFilePath(path, sizeof(path)) || !activeFileSystem->exists(TEST_BACKUP_PATH)) {
         giveStorageLock();
         return false;
     }
-    SD.remove(path);
-    bool restored = SD.rename(TEST_BACKUP_PATH, path);
+    activeFileSystem->remove(path);
+    bool restored = activeFileSystem->rename(TEST_BACKUP_PATH, path);
     giveStorageLock();
     return restored;
 }
+#endif
 
 bool recoverPartialTodayTail() {
     if (!takeStorageLock()) return false;
     char path[STORAGE_PATH_BUFFER_SIZE];
-    if (SD.cardType() == CARD_NONE || !getTodayFilePath(path, sizeof(path)) || !SD.exists(path)) {
+    if (!storageMounted || !getTodayFilePath(path, sizeof(path)) || !activeFileSystem->exists(path)) {
         giveStorageLock();
         return false;
     }
-    File input = SD.open(path, FILE_READ);
+    File input = activeFileSystem->open(path, FILE_READ);
     if (!input) {
         giveStorageLock();
         return false;
@@ -629,18 +847,18 @@ bool recoverPartialTodayTail() {
         giveStorageLock();
         return true;
     }
-    SD.remove(STORAGE_TEMP_PATH);
-    input = SD.open(path, FILE_READ);
-    File output = SD.open(STORAGE_TEMP_PATH, FILE_WRITE);
+    activeFileSystem->remove(STORAGE_TEMP_PATH);
+    input = activeFileSystem->open(path, FILE_READ);
+    File output = activeFileSystem->open(STORAGE_TEMP_PATH, FILE_WRITE);
     if (!input || !output) {
         if (input) input.close();
         if (output) output.close();
-        SD.remove(STORAGE_TEMP_PATH);
+        activeFileSystem->remove(STORAGE_TEMP_PATH);
         giveStorageLock();
         return false;
     }
     size_t copyBytes = validTrailingRecord ? fileSize : lastCompleteBytes;
-    uint8_t buffer[TEST_COPY_BUFFER_SIZE];
+    uint8_t buffer[STORAGE_RECOVERY_BUFFER_SIZE];
     bool copied = input.seek(0);
     while (copied && copyBytes > 0) {
         size_t request = copyBytes < sizeof(buffer) ? copyBytes : sizeof(buffer);
@@ -656,28 +874,52 @@ bool recoverPartialTodayTail() {
     output.flush();
     output.close();
     if (copied) {
-        SD.remove(path);
-        copied = SD.rename(STORAGE_TEMP_PATH, path);
+        activeFileSystem->remove(path);
+        copied = activeFileSystem->rename(STORAGE_TEMP_PATH, path);
     } else {
-        SD.remove(STORAGE_TEMP_PATH);
+        activeFileSystem->remove(STORAGE_TEMP_PATH);
+    }
+    if (copied) {
+        File recovered = activeFileSystem->open(path, FILE_READ);
+        uint32_t lineCount = 0;
+        if (recovered) {
+            while (recovered.available()) {
+                recovered.readStringUntil('\n');
+                ++lineCount;
+            }
+            recovered.close();
+            todayRecordsCached = lineCount;
+        }
     }
     giveStorageLock();
     return copied;
 }
-#endif
-
 static void verifyLastRecords() {
-    ChainRecord records[CHAIN_VERIFY_DEFAULT_N];
-    size_t count = readLastNRecords(CHAIN_VERIFY_DEFAULT_N, records, CHAIN_VERIFY_DEFAULT_N);
-    int32_t failureIndex = hashchain_module::verifyChainSegment(records, count);
-    if (failureIndex < 0 && count > 0) {
+    uint32_t count = 0;
+    int32_t failureIndex = -1;
+    bool readable = verifyAllRecords(count, failureIndex);
+    if (storageVerifyAvailable && !storageVerifyPassed) {
+        Serial.printf("VERIFY FAIL index=%ld records=%u\n", static_cast<long>(storageVerifyFailure), static_cast<unsigned int>(count));
+        return;
+    }
+    if (boot_monitor_module::bootVerifyCount() > 0 && !boot_monitor_module::bootVerifyPassed()) {
+        storageVerifyAvailable = true;
+        storageVerifyPassed = false;
+        storageVerifyFailure = boot_monitor_module::bootVerifyFailureIndex();
+        Serial.printf("VERIFY FAIL index=%ld records=%u\n", static_cast<long>(storageVerifyFailure), static_cast<unsigned int>(count));
+        return;
+    }
+    storageVerifyAvailable = readable;
+    storageVerifyPassed = readable && failureIndex < 0;
+    storageVerifyFailure = failureIndex;
+    if (storageVerifyPassed) {
         Serial.printf("VERIFY PASS records=%u\n", static_cast<unsigned int>(count));
     } else {
         Serial.printf("VERIFY FAIL index=%ld records=%u\n", static_cast<long>(failureIndex < 0 ? 0 : failureIndex), static_cast<unsigned int>(count));
     }
 }
 
-static void processStorageRequest(const StorageCommand& request) {
+static void processStorageRequest(const StorageCommand& request, QueueHandle_t recordQueue, ChainRecord& pendingRecord, bool& pendingRecordValid) {
     if (request.type == STORAGE_COMMAND_VERIFY) {
         verifyLastRecords();
     } else if (request.type == STORAGE_COMMAND_TAMPER) {
@@ -686,6 +928,50 @@ static void processStorageRequest(const StorageCommand& request) {
         char latestHash[HASH_HEX_LEN + 1]{};
         bool hasHash = hashchain_module::loadLatestHash(latestHash, sizeof(latestHash));
         Serial.printf("CHAIN last_hash=%s records_today=%lu drops=%lu\n", hasHash ? latestHash : "", static_cast<unsigned long>(countTodayRecords()), static_cast<unsigned long>(hashchain_module::loadDropCount()));
+    } else if (request.type == STORAGE_COMMAND_CHAIN_RESET) {
+        bool reset = hashchain_module::prepareRuntimeReset();
+        if (reset && pendingRecordValid) {
+            reset = appendRecordToFile(pendingRecord);
+            if (reset) pendingRecordValid = false;
+        }
+        ChainRecord queuedRecord{};
+        while (reset && xQueueReceive(recordQueue, &queuedRecord, 0) == pdTRUE) {
+            if (!appendRecordToFile(queuedRecord)) {
+                pendingRecord = queuedRecord;
+                pendingRecordValid = true;
+                reset = false;
+            }
+        }
+        if (reset) reset = archiveLogFiles() && hashchain_module::finishRuntimeReset(true);
+        if (!reset) hashchain_module::finishRuntimeReset(false);
+        if (reset) {
+            clearVerifyState();
+            boot_monitor_module::clearBootVerifyState();
+            Serial.println("CHAIN RESET OK");
+        } else {
+            Serial.println("CHAIN RESET FAILED");
+        }
+    } else if (request.type == STORAGE_COMMAND_FS_FORMAT) {
+        bool formatted = false;
+        if (takeStorageLock() && activeBackend == 2) {
+            storageMounted = false;
+            LittleFS.end();
+            formatted = LittleFS.format() && LittleFS.begin(true);
+            if (formatted) {
+                activeFileSystem = &LittleFS;
+                storageMounted = true;
+                formatted = LittleFS.exists(LOG_DIR) || LittleFS.mkdir(LOG_DIR);
+            }
+            storageMounted = formatted;
+            if (formatted) {
+                todayRecordsCached = 0;
+                clearVerifyState();
+                boot_monitor_module::clearBootVerifyState();
+                formatted = hashchain_module::resetChain();
+            }
+            giveStorageLock();
+        }
+        Serial.println(formatted ? "FS FORMAT OK" : "FS FORMAT FAILED");
     }
 }
 
@@ -693,10 +979,12 @@ void registerStorageCommands() {
     serial_cmd_module::registerCommand("VERIFY", handleVerifyCommand);
     serial_cmd_module::registerCommand("TAMPER", handleTamperCommand);
     serial_cmd_module::registerCommand("CHAIN", handleChainCommand);
+    serial_cmd_module::registerCommand("FS", handleFsCommand);
 }
 
 void startStorageTask(QueueHandle_t inputQueue) {
-    xTaskCreate(storageTask, "sdwrite", STACK_SIZE_DEFAULT, inputQueue, PRIORITY_SDWRITE, nullptr);
+    if (inputQueue == nullptr || storageCommandQueue == nullptr || storageMutex == nullptr) return;
+    xTaskCreate(storageTask, "sdwrite", STACK_SIZE_STORAGE, inputQueue, PRIORITY_SDWRITE, nullptr);
 }
 
 void storageTask(void* parameter) {
@@ -710,14 +998,16 @@ void storageTask(void* parameter) {
         boot_monitor_module::reportTaskStack("sdwrite", lastStackReport);
         if (!isReady() && millis() - lastMountAttempt >= SD_RETRY_MS) {
             lastMountAttempt = millis();
+            bool mounted = false;
             if (takeStorageLock()) {
-                mountCard();
+                mounted = mountCard();
                 giveStorageLock();
             }
+            if (mounted) todayRecordsCached = countTodayRecords();
         }
         StorageCommand request;
         if (xQueueReceive(storageCommandQueue, &request, 0) == pdTRUE) {
-            processStorageRequest(request);
+            processStorageRequest(request, recordQueue, pendingRecord, pendingRecordValid);
         }
         if (!pendingRecordValid && xQueueReceive(recordQueue, &pendingRecord, pdMS_TO_TICKS(STORAGE_POLL_MS)) == pdTRUE) {
             pendingRecordValid = true;
@@ -725,7 +1015,9 @@ void storageTask(void* parameter) {
         if (pendingRecordValid && appendRecordToFile(pendingRecord)) {
             pendingRecordValid = false;
         } else if (pendingRecordValid) {
+#if DEBUG_VERBOSE
             Serial.println("sdwrite retry pending");
+#endif
             vTaskDelay(pdMS_TO_TICKS(STORAGE_POLL_MS));
         }
     }

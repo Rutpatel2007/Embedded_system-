@@ -1,5 +1,5 @@
-#ifndef PROOV_BOOT_MONITOR_H
-#define PROOV_BOOT_MONITOR_H
+#ifndef TRUESENSE_BOOT_MONITOR_H
+#define TRUESENSE_BOOT_MONITOR_H
 
 #include <Arduino.h>
 
@@ -9,6 +9,7 @@ bool verifyBootChain();
 bool bootVerifyPassed();
 uint32_t bootVerifyCount();
 int32_t bootVerifyFailureIndex();
+void clearBootVerifyState();
 void registerCommands();
 void startTask();
 void task(void* parameter);

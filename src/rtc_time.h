@@ -1,5 +1,5 @@
-#ifndef PROOV_RTC_TIME_H
-#define PROOV_RTC_TIME_H
+#ifndef TRUESENSE_RTC_TIME_H
+#define TRUESENSE_RTC_TIME_H
 
 #include <Arduino.h>
 

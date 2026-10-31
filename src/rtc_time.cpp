@@ -93,6 +93,7 @@ void registerRtcCommands() {
 }
 
 void startRtcTimeTask() {
+    if (rtcCommandQueue == nullptr) return;
     xTaskCreate(rtcTimeTask, "rtc_time", STACK_SIZE_DEFAULT, nullptr, PRIORITY_SENSOR, nullptr);
 }
 
@@ -105,7 +106,9 @@ void rtcTimeTask(void* parameter) {
         if (xQueueReceive(rtcCommandQueue, &epoch, pdMS_TO_TICKS(HEARTBEAT_INTERVAL_MS)) == pdTRUE) {
             Serial.println(setInitialTime(epoch) ? "RTC time set" : "RTC unavailable");
         } else {
+#if DEBUG_VERBOSE
             Serial.println("rtc_time heartbeat");
+#endif
         }
     }
 }
