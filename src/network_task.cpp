@@ -1,24 +1,31 @@
-#if __has_include("secrets.h")
+#include "config.h"
+
+#if WIFI_ENABLED && __has_include("secrets.h")
 #include "secrets.h"
-#else
+#elif WIFI_ENABLED
 #error "Missing src/secrets.h. Copy src/secrets.h.example to src/secrets.h and set the local values."
 #endif
 
-#ifndef WIFI_SSID
+#if WIFI_ENABLED && !defined(WIFI_SSID)
 #error "src/secrets.h must define WIFI_SSID."
 #endif
-#ifndef WIFI_PASSWORD
+#if WIFI_ENABLED && !defined(WIFI_PASSWORD)
 #error "src/secrets.h must define WIFI_PASSWORD."
 #endif
-#ifndef BACKEND_URL
+#if WIFI_ENABLED && !defined(BACKEND_URL)
 #error "src/secrets.h must define BACKEND_URL."
 #endif
-#ifndef API_KEY
+#if WIFI_ENABLED && !defined(API_KEY)
 #error "src/secrets.h must define API_KEY."
+#endif
+#if !WIFI_ENABLED
+#define WIFI_SSID ""
+#define WIFI_PASSWORD ""
+#define BACKEND_URL ""
+#define API_KEY ""
 #endif
 
 #include "network_task.h"
-#include "config.h"
 #include "hashchain.h"
 #include "rtc_time.h"
 #include "serial_cmd.h"
@@ -51,6 +58,10 @@ static void enqueueNetworkCommand(NetworkCommandType type) {
 }
 
 static void handleSyncCommand(const char* args) {
+#if !WIFI_ENABLED
+    static_cast<void>(args);
+    Serial.println("wifi disabled");
+#else
     if (args[0] == '\0') {
         enqueueNetworkCommand(NETWORK_COMMAND_STATUS);
     } else if (strcasecmp(args, "NOW") == 0) {
@@ -60,15 +71,16 @@ static void handleSyncCommand(const char* args) {
     } else {
         Serial.println("Usage: SYNC [NOW|RESET]");
     }
+#endif
 }
 
 static bool loadCursor(SyncCursor& cursor) {
     Preferences preferences;
-    if (!preferences.begin(SYNC_NVS_NAMESPACE, true)) {
+    if (!preferences.begin(SYNC_NVS_NAMESPACE, false)) {
         return false;
     }
     bool present = preferences.isKey(SYNC_NVS_CURSOR_KEY);
-    size_t cursorBytes = preferences.getBytes(SYNC_NVS_CURSOR_KEY, &cursor, sizeof(cursor));
+    size_t cursorBytes = present ? preferences.getBytes(SYNC_NVS_CURSOR_KEY, &cursor, sizeof(cursor)) : 0;
     preferences.end();
     return present && cursorBytes == sizeof(cursor) && cursor.lineIndex > 0;
 }
@@ -85,10 +97,10 @@ static bool storeCursor(const SyncCursor& cursor) {
 
 static uint32_t loadLastSuccessTimestamp() {
     Preferences preferences;
-    if (!preferences.begin(SYNC_NVS_NAMESPACE, true)) {
+    if (!preferences.begin(SYNC_NVS_NAMESPACE, false)) {
         return 0;
     }
-    uint32_t timestamp = preferences.getUInt(SYNC_NVS_LAST_SUCCESS_KEY, 0);
+    uint32_t timestamp = preferences.isKey(SYNC_NVS_LAST_SUCCESS_KEY) ? preferences.getUInt(SYNC_NVS_LAST_SUCCESS_KEY, 0) : 0;
     preferences.end();
     return timestamp;
 }
@@ -166,10 +178,16 @@ static void processNetworkCommand(NetworkRuntime& runtime, NetworkCommandType co
 
 namespace network_task_module {
 void init() {
+#if WIFI_ENABLED
     networkCommandQueue = xQueueCreate(NETWORK_COMMAND_QUEUE_LENGTH, sizeof(NetworkCommand));
+#endif
 }
 
 bool connectWiFi(NetworkRuntime& runtime) {
+#if !WIFI_ENABLED
+    static_cast<void>(runtime);
+    return false;
+#else
     uint32_t now = millis();
     if (WiFi.status() == WL_CONNECTED) {
         if (runtime.connecting) {
@@ -187,7 +205,7 @@ bool connectWiFi(NetworkRuntime& runtime) {
         WiFi.disconnect(false, false);
         runtime.connecting = false;
         runtime.retryAtMs = now + runtime.retryDelayMs;
-        runtime.retryDelayMs = runtime.retryDelayMs >= WIFI_RETRY_MAX_MS / 2 ? WIFI_RETRY_MAX_MS : runtime.retryDelayMs * 2;
+        runtime.retryDelayMs = WIFI_RETRY_MAX_MS == 0 || runtime.retryDelayMs >= WIFI_RETRY_MAX_MS / 2 ? WIFI_RETRY_MAX_MS : runtime.retryDelayMs * 2;
         Serial.println("WiFi connection attempt failed");
         return false;
     }
@@ -200,9 +218,16 @@ bool connectWiFi(NetworkRuntime& runtime) {
     runtime.connectionStartedAtMs = now;
     Serial.println("WiFi connection attempt started");
     return false;
+#endif
 }
 
-bool wifiConnected() { return WiFi.status() == WL_CONNECTED; }
+bool wifiConnected() {
+#if WIFI_ENABLED
+    return WiFi.status() == WL_CONNECTED;
+#else
+    return false;
+#endif
+}
 
 bool syncPendingRecords(NetworkRuntime& runtime) {
     ChainRecord records[SYNC_BATCH_SIZE];
@@ -265,10 +290,13 @@ void registerNetworkCommands() {
 }
 
 void startNetworkTask() {
-    xTaskCreate(networkTask, "network_task", STACK_SIZE_NETWORK, nullptr, PRIORITY_NETWORK, nullptr);
+#if WIFI_ENABLED
+    if (networkCommandQueue != nullptr) xTaskCreate(networkTask, "network_task", STACK_SIZE_NETWORK, nullptr, PRIORITY_NETWORK, nullptr);
+#endif
 }
 
 void networkTask(void* parameter) {
+#if WIFI_ENABLED
     static_cast<void>(parameter);
     NetworkRuntime runtime{};
     runtime.retryDelayMs = WIFI_RETRY_MIN_MS;
@@ -293,5 +321,9 @@ void networkTask(void* parameter) {
         }
         vTaskDelay(pdMS_TO_TICKS(NETWORK_POLL_MS));
     }
+#else
+    static_cast<void>(parameter);
+    vTaskDelete(nullptr);
+#endif
 }
 }

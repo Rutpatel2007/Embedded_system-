@@ -1,5 +1,5 @@
-#ifndef PROOV_RELAY_H
-#define PROOV_RELAY_H
+#ifndef TRUESENSE_RELAY_H
+#define TRUESENSE_RELAY_H
 
 #include <Arduino.h>
 

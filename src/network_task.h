@@ -1,5 +1,5 @@
-#ifndef PROOV_NETWORK_TASK_H
-#define PROOV_NETWORK_TASK_H
+#ifndef TRUESENSE_NETWORK_TASK_H
+#define TRUESENSE_NETWORK_TASK_H
 
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>

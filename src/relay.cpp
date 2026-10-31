@@ -67,7 +67,7 @@ uint32_t getDropCount() {
     return drops;
 }
 
-void startRelayTask() { xTaskCreate(relayTask, "relay_task", RELAY_TASK_STACK, nullptr, RELAY_TASK_PRIORITY, nullptr); }
+void startRelayTask() { if (relayRequestQueue != nullptr) xTaskCreate(relayTask, "relay_task", RELAY_TASK_STACK, nullptr, RELAY_TASK_PRIORITY, nullptr); }
 
 void registerRelayCommands() {
     serial_cmd_module::registerCommand("RELAY", handleRelayCommand);

@@ -1,5 +1,5 @@
-#ifndef PROOV_SENSOR_TASK_H
-#define PROOV_SENSOR_TASK_H
+#ifndef TRUESENSE_SENSOR_TASK_H
+#define TRUESENSE_SENSOR_TASK_H
 
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
@@ -18,7 +18,7 @@ struct GasState {
     bool calibrated;
 };
 
-struct ProovRecord {
+struct TrueSenseRecord {
     uint32_t sequence;
     int32_t gasMilliUnits;
     int32_t powerMilliWatts;
@@ -38,6 +38,7 @@ uint32_t convertToPPM(uint32_t rsOhms, uint32_t r0Ohms);
 void updateBaseline(GasState& state, uint32_t gasPpmX100);
 uint32_t getBaseline_x100(const GasState& state);
 uint32_t getQueueDropCount();
+bool isCalibrated();
 void registerSensorCommands();
 void startSensorTask(QueueHandle_t outputQueue);
 void sensorTask(void* parameter);
