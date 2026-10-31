@@ -1,5 +1,5 @@
-#ifndef PROOV_FINGERPRINT_H
-#define PROOV_FINGERPRINT_H
+#ifndef TRUESENSE_FINGERPRINT_H
+#define TRUESENSE_FINGERPRINT_H
 
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
@@ -15,6 +15,7 @@ namespace fingerprint_module {
 void init();
 bool measureSignature(FingerprintSignature& signature);
 uint8_t getStatus();
+uint64_t getDistance(bool& available);
 uint32_t getDropCount();
 #ifdef TEST_MODE
 bool isEnrolled();

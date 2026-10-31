@@ -9,6 +9,9 @@ static uint32_t equipmentStateChangedAt;
 static bool lastChangeWasActivation;
 
 namespace plausibility_module {
+uint64_t safeDivide(uint64_t numerator, uint64_t denominator, uint64_t fallback) { return denominator == 0 ? fallback : numerator / denominator; }
+uint32_t safeModulo(uint32_t numerator, uint32_t denominator, uint32_t fallback) { return denominator == 0 ? fallback : numerator % denominator; }
+
 void init() {
     consecutiveSpikeSamples = 0;
     stats = {};
@@ -50,6 +53,11 @@ int checkPlausibility(uint32_t gasPpmX100, uint32_t baselineX100, bool equipment
         ++stats.suspiciousCount;
     }
     return result;
+}
+
+int invalidSensorSample() {
+    consecutiveSpikeSamples = 0;
+    return PLAUSIBILITY_NORMAL;
 }
 
 PlausibilityStats getPlausibilityStats() {

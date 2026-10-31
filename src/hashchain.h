@@ -1,5 +1,5 @@
-#ifndef PROOV_HASHCHAIN_H
-#define PROOV_HASHCHAIN_H
+#ifndef TRUESENSE_HASHCHAIN_H
+#define TRUESENSE_HASHCHAIN_H
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -21,7 +21,7 @@ namespace hashchain_module {
 void init();
 String serializeRecord(const ChainRecord& record);
 bool computeHash(const String& serializedRecord, char* output, size_t outputSize);
-bool appendToChain(const ProovRecord& input, const char* previousHash, ChainRecord& output);
+bool appendToChain(const TrueSenseRecord& input, const char* previousHash, ChainRecord& output);
 int32_t verifyChainSegment(const ChainRecord* records, size_t count);
 bool loadLatestHash(char* output, size_t outputSize);
 bool storeLatestHash(const char* hash);
@@ -30,6 +30,10 @@ uint32_t incrementDropCount();
 uint32_t getDropCount();
 uint32_t getQueueDropCount();
 bool recoverLatestHash(char* output, size_t outputSize);
+bool resetChain();
+bool latestPointerInconsistent();
+bool prepareRuntimeReset();
+bool finishRuntimeReset(bool commit);
 void startHashchainTask(QueueHandle_t inputQueue, QueueHandle_t outputQueue);
 void hashchainTask(void* parameter);
 }
