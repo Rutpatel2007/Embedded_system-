@@ -50,8 +50,8 @@ device_id|timestamp|gas_ppm|power_mW|plausibility|fingerprint_status|previous_ha
 3. **No Whitespace**: No spaces around delimiters, no leading or trailing whitespace.
 4. **No Newlines**: Do not include `\n` or `\r` anywhere in the serialization string.
 5. **Character Encoding**: Standard UTF-8 / ASCII.
-6. **Genesis Hash**: For the first record ($n=1$), `previous_hash` is 64 ASCII zero characters:
-   `0000000000000000000000000000000000000000000000000000000000000000`
+6. **Genesis Hash**: For the first record ($n=1$), `previous_hash` is lowercase hexadecimal SHA-256 of `TRUESENSE-GENESIS-` followed by the device ID.
+   `SHA-256("TRUESENSE-GENESIS-" + device_id)`
 
 ---
 
@@ -66,18 +66,18 @@ Given the payload:
   "power_mW": 823.420,
   "plausibility": "NORMAL",
   "fingerprint_status": "SENSOR_OK",
-  "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+  "previous_hash": "<genesis hash for TS001>"
 }
 ```
 
 ### Canonical Serialization String ($S_1$):
 ```text
-TS001|1750000000|42.381|823.420|NORMAL|SENSOR_OK|0000000000000000000000000000000000000000000000000000000000000000
+TS001|1750000000|42.381|823.420|NORMAL|SENSOR_OK|<genesis hash for TS001>
 ```
 
 ### Resulting SHA-256 Digest ($H_1$):
 ```text
-2e8e7995bb9576188874c028488bafb8a5973133134cbb123182b3c79051dcd3
+67a58440a920e7353f0ea97fb8125bfd72abb103f7953051e1c602872aedf262
 ```
 *(Note: Verification tests in C++ and Python will validate against this exact canonical example).*
 

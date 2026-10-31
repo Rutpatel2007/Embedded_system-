@@ -1,4 +1,4 @@
-# PROOV Project Rules
+# TrueSense Project Rules
 
 - Hardware: I2C SDA GPIO21, SCL GPIO22 (INA219 @0x40, DS3231 @0x68); SPI microSD MOSI 23, MISO 19, SCK 18, CS 5; MQ-135 analog out GPIO34; relay control GPIO4. GPIO12 and GPIO2 are forbidden (boot strapping).
 - No code comments, no explanatory prose in code files.
@@ -9,4 +9,4 @@
 - Never use floats in hashed or serialized data; use scaled integers.
 - Every module exposes `init()` and a clear API in its header.
 - After each change, run `pio run` and fix all warnings and errors before finishing.
-- Hash rule: `hash` is lowercase hexadecimal SHA-256 of the exact serialized record, including its `previous_hash` field.
+- Hash rule: `hash` is lowercase hexadecimal SHA-256 of the exact serialized record, including its `previous_hash` field. The genesis hash is lowercase hexadecimal SHA-256 of `TRUESENSE-GENESIS-` followed by the device ID.

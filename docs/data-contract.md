@@ -33,7 +33,7 @@ Every reading captured by a TrueSense node and stored or transmitted across the 
 | `power_mW` | `float` | Fixed 3 decimal places (`%.3f`) | $0.000$ to $50000.000$ | mW | Monitored equipment electrical power consumption |
 | `plausibility` | `string` | Uppercase Enum | `"NORMAL"`, `"PLAUSIBLE"`, `"SUSPICIOUS"` | N/A | Layer 1 cross-modal physical verification result |
 | `fingerprint_status` | `string` | Uppercase Enum | `"SENSOR_OK"`, `"SENSOR_IDENTITY_MISMATCH"` | N/A | Layer 2 sensor identity fingerprint result |
-| `previous_hash` | `string` | 64-char Hex (lowercase) | Valid SHA-256 string | N/A | Hash of preceding record ($H_{n-1}$). Genesis = 64 `0`s |
+| `previous_hash` | `string` | 64-char Hex (lowercase) | Valid SHA-256 string | N/A | Hash of preceding record ($H_{n-1}$). Genesis is SHA-256 of `TRUESENSE-GENESIS-` followed by the device ID |
 | `hash` | `string` | 64-char Hex (lowercase) | Valid SHA-256 string | N/A | SHA-256 digest of canonical record serialization ($H_n$) |
 
 ---
@@ -54,6 +54,5 @@ Every reading captured by a TrueSense node and stored or transmitted across the 
 ## 4. Genesis Hash Rule
 For the **very first record** produced by a device (Record 1):
 ```text
-previous_hash = "0000000000000000000000000000000000000000000000000000000000000000"
+previous_hash = SHA-256("TRUESENSE-GENESIS-" + device_id)
 ```
-(64 ASCII zero characters).
